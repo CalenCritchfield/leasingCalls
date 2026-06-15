@@ -1,0 +1,1844 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leasing Operations Call Tracker</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap");
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --navy: #1b2a3b;
+        --teal: #2d6e6e;
+        --teal-lt: #3d8f8f;
+        --gold: #c9a84c;
+        --cream: #f7f4ef;
+        --white: #ffffff;
+        --muted: #6b7280;
+        --border: #ddd8d0;
+        --red: #c0392b;
+        --green: #27ae60;
+        --radius: 10px;
+      }
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: var(--cream);
+        color: var(--navy);
+        min-height: 100vh;
+      }
+
+      /* Header */
+      header {
+        background: var(--navy);
+        padding: 18px 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .logo {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.4rem;
+        color: var(--white);
+        letter-spacing: 0.5px;
+      }
+      .logo span {
+        color: var(--gold);
+      }
+      .header-date {
+        color: #8fa3b1;
+        font-size: 0.8rem;
+        font-weight: 300;
+      }
+
+      /* View Tabs */
+      .view-tabs {
+        background: var(--white);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        padding: 0 32px;
+      }
+      .view-tab {
+        padding: 14px 22px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        color: var(--muted);
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        transition: all 0.15s;
+      }
+      .view-tab:hover {
+        color: var(--navy);
+      }
+      .view-tab.active {
+        color: var(--teal);
+        border-bottom-color: var(--teal);
+      }
+
+      /* Layout */
+      .container {
+        max-width: 1140px;
+        margin: 0 auto;
+        padding: 28px 20px;
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 28px;
+      }
+      .full-width {
+        grid-column: 1 / -1;
+      }
+
+      /* Card */
+      .card {
+        background: var(--white);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        padding: 28px;
+      }
+      .card-title {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 20px;
+      }
+
+      /* Timer */
+      .timer-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 28px 0 20px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 24px;
+      }
+      .timer-display {
+        font-family: "DM Serif Display", serif;
+        font-size: 3.2rem;
+        color: var(--navy);
+        letter-spacing: 2px;
+      }
+      .timer-display.running {
+        color: var(--teal);
+      }
+      .call-status {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--muted);
+        letter-spacing: 0.5px;
+      }
+      .call-status.active {
+        color: var(--green);
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 28px;
+        border-radius: 6px;
+        border: none;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn-start {
+        background: var(--teal);
+        color: var(--white);
+        width: 100%;
+        justify-content: center;
+        font-size: 1rem;
+        padding: 14px;
+      }
+      .btn-start:hover {
+        background: var(--teal-lt);
+      }
+      .btn-stop {
+        background: var(--red);
+        color: var(--white);
+        width: 100%;
+        justify-content: center;
+        font-size: 1rem;
+        padding: 14px;
+      }
+      .btn-stop:hover {
+        background: #a93226;
+      }
+      .btn-submit {
+        background: var(--navy);
+        color: var(--white);
+        width: 100%;
+        justify-content: center;
+        font-size: 1rem;
+        padding: 14px;
+        margin-top: 8px;
+      }
+      .btn-submit:hover {
+        background: #253b50;
+      }
+      .btn-submit:disabled {
+        background: #b0b8c0;
+        cursor: not-allowed;
+      }
+      .btn-gold {
+        background: var(--gold);
+        color: var(--navy);
+        padding: 10px 18px;
+        font-weight: 600;
+        font-size: 0.82rem;
+      }
+      .btn-gold:hover {
+        background: #b8963e;
+      }
+      .btn-outline-red {
+        background: transparent;
+        color: var(--red);
+        border: 1px solid var(--red);
+        padding: 10px 18px;
+        font-size: 0.82rem;
+      }
+      .btn-outline-red:hover {
+        background: #fdf0ee;
+      }
+      .btn-outline {
+        background: transparent;
+        color: var(--navy);
+        border: 1px solid var(--border);
+        padding: 10px 18px;
+        font-size: 0.82rem;
+      }
+      .btn-outline:hover {
+        background: var(--cream);
+      }
+
+      /* Call types */
+      .call-types {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      .type-option {
+        display: none;
+      }
+      .type-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.88rem;
+        font-weight: 500;
+        transition: all 0.15s;
+        color: var(--navy);
+      }
+      .type-label:hover {
+        border-color: var(--teal);
+        background: #f0f8f8;
+      }
+      .type-option:checked + .type-label {
+        border-color: var(--teal);
+        background: #eaf5f5;
+        color: var(--teal);
+      }
+      .type-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--border);
+        flex-shrink: 0;
+        transition: background 0.15s;
+      }
+      .type-option:checked + .type-label .type-dot {
+        background: var(--teal);
+      }
+
+      /* Checkboxes */
+      .action-checks {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      .check-label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.88rem;
+        font-weight: 500;
+        transition: all 0.15s;
+      }
+      .check-label:hover {
+        border-color: var(--gold);
+        background: #fbf8f0;
+      }
+      .check-label input[type="checkbox"] {
+        display: none;
+      }
+      .custom-check {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--border);
+        border-radius: 4px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        font-size: 0.75rem;
+        color: white;
+      }
+      .check-label input:checked ~ .custom-check {
+        background: var(--gold);
+        border-color: var(--gold);
+      }
+      .check-label input:checked ~ .custom-check::after {
+        content: "✓";
+      }
+
+      /* Notes */
+      .notes-area {
+        width: 100%;
+        min-height: 90px;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.88rem;
+        color: var(--navy);
+        resize: vertical;
+        outline: none;
+        transition: border-color 0.15s;
+        margin-bottom: 24px;
+        background: var(--white);
+      }
+      .notes-area:focus {
+        border-color: var(--teal);
+      }
+
+      /* Log panel */
+      .log-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .log-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .log-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .log-item {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 0.82rem;
+      }
+      .log-item-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
+      .log-type-badge {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .log-type-badge.leasing {
+        background: #eaf5f5;
+        color: var(--teal);
+      }
+      .log-type-badge.applicant {
+        background: #f0eaf8;
+        color: #6b3f9e;
+      }
+      .log-type-badge.resident {
+        background: #fbf8f0;
+        color: #9e6b1a;
+      }
+      .log-type-badge.other {
+        background: #f0f0f0;
+        color: #555;
+      }
+      .log-time {
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+      .log-actions-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+      }
+      .log-tag {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+        background: #fef9ec;
+        color: #9e6b1a;
+        border: 1px solid #f0d9a0;
+      }
+      .log-notes-text {
+        color: var(--muted);
+        margin-top: 5px;
+        font-style: italic;
+        font-size: 0.78rem;
+      }
+      .empty-log {
+        text-align: center;
+        padding: 40px 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      /* Date filter bar */
+      .filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .filter-bar label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--muted);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      .date-input {
+        border: 1.5px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.85rem;
+        color: var(--navy);
+        outline: none;
+        background: var(--white);
+      }
+      .date-input:focus {
+        border-color: var(--teal);
+      }
+      .filter-chip {
+        padding: 7px 14px;
+        border-radius: 20px;
+        border: 1.5px solid var(--border);
+        background: var(--white);
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--muted);
+        transition: all 0.15s;
+      }
+      .filter-chip:hover {
+        border-color: var(--teal);
+        color: var(--teal);
+      }
+      .filter-chip.active {
+        background: var(--teal);
+        border-color: var(--teal);
+        color: var(--white);
+      }
+
+      /* Stats row */
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+      .stat-card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        text-align: center;
+      }
+      .stat-num {
+        font-family: "DM Serif Display", serif;
+        font-size: 2.4rem;
+        color: var(--navy);
+        line-height: 1;
+      }
+      .stat-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+
+      /* Charts */
+      .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+      }
+      .chart-wrapper {
+        position: relative;
+        height: 220px;
+        display: flex;
+        align-items: flex-end;
+        gap: 14px;
+        padding: 0 10px;
+      }
+      .bar-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .bar-val {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--navy);
+      }
+      .bar {
+        width: 100%;
+        border-radius: 6px 6px 0 0;
+        min-height: 4px;
+        transition: height 0.4s ease;
+      }
+      .bar-label {
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-align: center;
+        font-weight: 500;
+      }
+      .bar-axis {
+        width: 100%;
+        height: 2px;
+        background: var(--border);
+        position: absolute;
+        bottom: 0;
+        left: 0;
+      }
+      .donut-wrap {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .donut-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+      }
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .legend-count {
+        font-weight: 600;
+        margin-left: auto;
+      }
+
+      /* Weekly view */
+      .week-nav {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 24px;
+      }
+      .week-nav-btn {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 14px;
+        cursor: pointer;
+        font-size: 1rem;
+        color: var(--navy);
+        transition: all 0.15s;
+      }
+      .week-nav-btn:hover {
+        background: var(--cream);
+      }
+      .week-label {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.2rem;
+        color: var(--navy);
+      }
+      .week-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      .day-card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .day-card:hover {
+        border-color: var(--teal);
+      }
+      .day-card.today {
+        border-color: var(--teal);
+        background: #eaf5f5;
+      }
+      .day-card.selected {
+        border-color: var(--navy);
+        background: var(--navy);
+        color: var(--white);
+      }
+      .day-card.selected .day-name,
+      .day-card.selected .day-num,
+      .day-card.selected .day-count {
+        color: var(--white) !important;
+      }
+      .day-name {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .day-num {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.5rem;
+        color: var(--navy);
+        line-height: 1;
+      }
+      .day-count {
+        font-size: 0.72rem;
+        color: var(--teal);
+        font-weight: 600;
+        margin-top: 4px;
+      }
+      .day-count.zero {
+        color: var(--muted);
+      }
+
+      /* Weekly summary table */
+      .week-summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+      }
+      .week-summary-table th {
+        text-align: left;
+        padding: 10px 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--muted);
+        border-bottom: 2px solid var(--border);
+      }
+      .week-summary-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .week-summary-table tr:last-child td {
+        border-bottom: none;
+        font-weight: 600;
+        background: var(--cream);
+      }
+      .tbl-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+      }
+
+      /* Weekly bar chart */
+      .week-bar-wrap {
+        display: flex;
+        align-items: flex-end;
+        gap: 6px;
+        height: 120px;
+        padding-bottom: 24px;
+        position: relative;
+      }
+      .week-bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        height: 100%;
+        justify-content: flex-end;
+      }
+      .week-bar-inner {
+        width: 100%;
+        border-radius: 4px 4px 0 0;
+        min-height: 3px;
+        background: var(--teal);
+        transition: height 0.3s;
+      }
+      .week-bar-lbl {
+        font-size: 0.65rem;
+        color: var(--muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        position: absolute;
+        bottom: 0;
+      }
+      .week-bar-val {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--navy);
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        background: var(--navy);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        font-weight: 500;
+        transform: translateY(80px);
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 999;
+      }
+      .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      .field-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
+        display: block;
+      }
+
+      /* Section label */
+      .period-label {
+        font-size: 0.78rem;
+        color: var(--muted);
+        font-weight: 500;
+        padding: 6px 0 0;
+      }
+
+      .view-section {
+        display: none;
+      }
+      .view-section.active {
+        display: contents;
+      }
+      #weeklyView {
+        display: none;
+      }
+      #weeklyView.active {
+        display: block;
+      }
+
+      @media (max-width: 820px) {
+        .container {
+          grid-template-columns: 1fr;
+        }
+        .charts-grid {
+          grid-template-columns: 1fr;
+        }
+        .stats-row {
+          grid-template-columns: 1fr 1fr;
+        }
+        .week-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+        .donut-wrap {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo">Leasing <span>Operations</span></div>
+      <div class="header-date" id="headerDate"></div>
+    </header>
+
+    <div class="view-tabs">
+      <div class="view-tab active" onclick="switchView('today')">Today</div>
+      <div class="view-tab" onclick="switchView('history')">Call History</div>
+      <div class="view-tab" onclick="switchView('weekly')">Weekly Summary</div>
+    </div>
+
+    <!-- ═══════════════ TODAY VIEW ═══════════════ -->
+    <div id="todayView">
+      <div class="container">
+        <!-- Active Call Form -->
+        <div>
+          <div class="card">
+            <div class="card-title">Active Call</div>
+            <div class="timer-block">
+              <div class="timer-display" id="timerDisplay">00:00:00</div>
+              <div class="call-status" id="callStatus">No active call</div>
+              <button class="btn btn-start" id="startBtn" onclick="startCall()">
+                ▶ Start Call
+              </button>
+              <button
+                class="btn btn-stop"
+                id="stopBtn"
+                onclick="stopCall()"
+                style="display: none"
+              >
+                ■ End Call
+              </button>
+            </div>
+            <label class="field-label">Call Type</label>
+            <div class="call-types">
+              <div>
+                <input
+                  type="radio"
+                  name="callType"
+                  id="typeLeasing"
+                  value="Leasing"
+                  class="type-option"
+                /><label for="typeLeasing" class="type-label"
+                  ><span class="type-dot"></span>Leasing</label
+                >
+              </div>
+              <div>
+                <input
+                  type="radio"
+                  name="callType"
+                  id="typeApplicant"
+                  value="Applicant"
+                  class="type-option"
+                /><label for="typeApplicant" class="type-label"
+                  ><span class="type-dot"></span>Applicant</label
+                >
+              </div>
+              <div>
+                <input
+                  type="radio"
+                  name="callType"
+                  id="typeResident"
+                  value="Resident"
+                  class="type-option"
+                /><label for="typeResident" class="type-label"
+                  ><span class="type-dot"></span>Resident</label
+                >
+              </div>
+              <div>
+                <input
+                  type="radio"
+                  name="callType"
+                  id="typeOther"
+                  value="Other"
+                  class="type-option"
+                /><label for="typeOther" class="type-label"
+                  ><span class="type-dot"></span>Other</label
+                >
+              </div>
+            </div>
+            <label class="field-label">Actions Taken</label>
+            <div class="action-checks">
+              <label class="check-label"
+                ><input type="checkbox" id="chkTour" /><span
+                  class="custom-check"
+                ></span
+                >Scheduled a Tour</label
+              >
+              <label class="check-label"
+                ><input type="checkbox" id="chkApp" /><span
+                  class="custom-check"
+                ></span
+                >Sent an Application</label
+              >
+            </div>
+            <label class="field-label" for="notes">Notes</label>
+            <textarea
+              class="notes-area"
+              id="notes"
+              placeholder="Add any call notes here…"
+            ></textarea>
+            <button
+              class="btn btn-submit"
+              id="submitBtn"
+              onclick="submitCall()"
+              disabled
+            >
+              Save Call
+            </button>
+          </div>
+        </div>
+
+        <!-- Today's Log -->
+        <div>
+          <div class="card" style="height: 100%">
+            <div class="log-header">
+              <div class="card-title" style="margin-bottom: 0">
+                Today's Calls
+              </div>
+              <div class="log-actions">
+                <button class="btn btn-gold" onclick="downloadCSV('today')">
+                  ↓ Export
+                </button>
+                <button class="btn btn-outline-red" onclick="clearLog()">
+                  Clear All
+                </button>
+              </div>
+            </div>
+            <div class="log-list" id="todayLogList"></div>
+          </div>
+        </div>
+
+        <!-- Today Stats -->
+        <div class="full-width stats-row" id="todayStats">
+          <div class="stat-card">
+            <div class="stat-num" id="tStatTotal">0</div>
+            <div class="stat-label">Total Calls</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="tStatTours">0</div>
+            <div class="stat-label">Tours Scheduled</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="tStatApps">0</div>
+            <div class="stat-label">Applications Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="tStatAvg">—</div>
+            <div class="stat-label">Avg Call Time</div>
+          </div>
+        </div>
+
+        <!-- Today Charts -->
+        <div class="full-width charts-grid">
+          <div class="card">
+            <div class="card-title">Today — Calls by Type</div>
+            <div class="chart-wrapper" id="todayBarChart">
+              <div class="bar-axis"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Today — Distribution</div>
+            <div class="donut-wrap">
+              <svg
+                width="140"
+                height="140"
+                viewBox="0 0 140 140"
+                id="todayDonutSvg"
+                style="flex-shrink: 0"
+              >
+                <circle
+                  cx="70"
+                  cy="70"
+                  r="55"
+                  fill="none"
+                  stroke="#EEEBE4"
+                  stroke-width="22"
+                />
+                <text
+                  x="70"
+                  y="75"
+                  text-anchor="middle"
+                  font-family="DM Serif Display"
+                  font-size="22"
+                  fill="#1B2A3B"
+                  id="todayDonutCenter"
+                >
+                  0
+                </text>
+              </svg>
+              <div class="donut-legend">
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #2d6e6e"></span
+                  >Leasing<span class="legend-count" id="tdLgLeasing">0</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #6b3f9e"></span
+                  >Applicant<span class="legend-count" id="tdLgApplicant"
+                    >0</span
+                  >
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #c9a84c"></span
+                  >Resident<span class="legend-count" id="tdLgResident">0</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #9ca3af"></span
+                  >Other<span class="legend-count" id="tdLgOther">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ HISTORY VIEW ═══════════════ -->
+    <div id="historyView" style="display: none">
+      <div class="container" style="grid-template-columns: 1fr">
+        <div class="card">
+          <div class="log-header">
+            <div class="card-title" style="margin-bottom: 0">Call History</div>
+            <div class="log-actions">
+              <button class="btn btn-gold" onclick="downloadCSV('filtered')">
+                ↓ Export Filtered
+              </button>
+              <button class="btn btn-gold" onclick="downloadCSV('all')">
+                ↓ Export All
+              </button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <label>Filter:</label>
+            <span class="filter-chip active" onclick="setChip(this, 'all')"
+              >All Time</span
+            >
+            <span class="filter-chip" onclick="setChip(this, 'today')"
+              >Today</span
+            >
+            <span class="filter-chip" onclick="setChip(this, 'week')"
+              >This Week</span
+            >
+            <span class="filter-chip" onclick="setChip(this, 'month')"
+              >This Month</span
+            >
+            <input
+              type="date"
+              class="date-input"
+              id="histFromDate"
+              onchange="setChip(null, 'custom')"
+              title="From"
+            />
+            <span style="color: var(--muted); font-size: 0.8rem">to</span>
+            <input
+              type="date"
+              class="date-input"
+              id="histToDate"
+              onchange="setChip(null, 'custom')"
+              title="To"
+            />
+            <button class="btn btn-outline" onclick="clearDateFilter()">
+              Reset
+            </button>
+          </div>
+          <div class="period-label" id="histPeriodLabel"></div>
+          <br />
+          <div
+            class="log-list"
+            style="max-height: 500px"
+            id="histLogList"
+          ></div>
+        </div>
+
+        <div class="stats-row" style="margin-top: 0">
+          <div class="stat-card">
+            <div class="stat-num" id="hStatTotal">0</div>
+            <div class="stat-label">Total Calls</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="hStatTours">0</div>
+            <div class="stat-label">Tours Scheduled</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="hStatApps">0</div>
+            <div class="stat-label">Applications Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="hStatAvg">—</div>
+            <div class="stat-label">Avg Call Time</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-title" id="histBarTitle">Calls by Type</div>
+            <div class="chart-wrapper" id="histBarChart">
+              <div class="bar-axis"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Distribution</div>
+            <div class="donut-wrap">
+              <svg
+                width="140"
+                height="140"
+                viewBox="0 0 140 140"
+                id="histDonutSvg"
+                style="flex-shrink: 0"
+              >
+                <circle
+                  cx="70"
+                  cy="70"
+                  r="55"
+                  fill="none"
+                  stroke="#EEEBE4"
+                  stroke-width="22"
+                />
+                <text
+                  x="70"
+                  y="75"
+                  text-anchor="middle"
+                  font-family="DM Serif Display"
+                  font-size="22"
+                  fill="#1B2A3B"
+                  id="histDonutCenter"
+                >
+                  0
+                </text>
+              </svg>
+              <div class="donut-legend">
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #2d6e6e"></span
+                  >Leasing<span class="legend-count" id="hLgLeasing">0</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #6b3f9e"></span
+                  >Applicant<span class="legend-count" id="hLgApplicant"
+                    >0</span
+                  >
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #c9a84c"></span
+                  >Resident<span class="legend-count" id="hLgResident">0</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #9ca3af"></span
+                  >Other<span class="legend-count" id="hLgOther">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ WEEKLY VIEW ═══════════════ -->
+    <div id="weeklyView" style="display: none">
+      <div style="max-width: 1140px; margin: 0 auto; padding: 28px 20px">
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+          "
+        >
+          <div class="week-nav">
+            <button class="week-nav-btn" onclick="shiftWeek(-1)">‹</button>
+            <div class="week-label" id="weekLabel"></div>
+            <button class="week-nav-btn" onclick="shiftWeek(1)">›</button>
+          </div>
+          <div style="display: flex; gap: 10px">
+            <button class="btn btn-gold" onclick="downloadCSV('week-report')">
+              ↓ Export Week Report
+            </button>
+            <button class="btn btn-outline" onclick="shiftWeek(0, true)">
+              This Week
+            </button>
+          </div>
+        </div>
+
+        <!-- Day picker -->
+        <div class="week-grid" id="weekDayGrid"></div>
+
+        <!-- Weekly stats -->
+        <div class="stats-row" style="margin-bottom: 28px">
+          <div class="stat-card">
+            <div class="stat-num" id="wStatTotal">0</div>
+            <div class="stat-label">Week Total</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="wStatTours">0</div>
+            <div class="stat-label">Tours Scheduled</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="wStatApps">0</div>
+            <div class="stat-label">Applications Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="wStatAvg">—</div>
+            <div class="stat-label">Avg Call Time</div>
+          </div>
+        </div>
+
+        <div class="charts-grid" style="margin-bottom: 28px">
+          <!-- Daily bar chart -->
+          <div class="card">
+            <div class="card-title">Calls Per Day</div>
+            <div
+              style="
+                display: flex;
+                align-items: flex-end;
+                gap: 8px;
+                height: 160px;
+                position: relative;
+                padding-bottom: 28px;
+              "
+              id="weekDailyBars"
+            ></div>
+          </div>
+          <!-- Type breakdown -->
+          <div class="card">
+            <div class="card-title">Week — Calls by Type</div>
+            <div class="chart-wrapper" id="weekTypeChart">
+              <div class="bar-axis"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-day breakdown table -->
+        <div class="card">
+          <div class="card-title">Day-by-Day Breakdown</div>
+          <table class="week-summary-table" id="weekTable">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Total</th>
+                <th>Leasing</th>
+                <th>Applicant</th>
+                <th>Resident</th>
+                <th>Other</th>
+                <th>Tours</th>
+                <th>Applications</th>
+              </tr>
+            </thead>
+            <tbody id="weekTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ── Constants
+      const COLORS = {
+        Leasing: "#2D6E6E",
+        Applicant: "#6B3F9E",
+        Resident: "#C9A84C",
+        Other: "#9CA3AF",
+      };
+      const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const DAYS_FULL = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+
+      // ── State
+      let timerInterval = null,
+        callStart = null,
+        callSeconds = 0,
+        callActive = false;
+      let calls = JSON.parse(localStorage.getItem("leasing_calls") || "[]");
+      let currentView = "today";
+      let histFilter = "all";
+      let weekOffset = 0; // 0 = current week
+
+      // ── Init
+      document.getElementById("headerDate").textContent =
+        new Date().toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      renderTodayView();
+
+      // ── View switching
+      function switchView(v) {
+        currentView = v;
+        document.querySelectorAll(".view-tab").forEach((t, i) => {
+          t.classList.toggle("active", ["today", "history", "weekly"][i] === v);
+        });
+        document.getElementById("todayView").style.display =
+          v === "today" ? "" : "none";
+        document.getElementById("historyView").style.display =
+          v === "history" ? "" : "none";
+        document.getElementById("weeklyView").style.display =
+          v === "weekly" ? "" : "none";
+        if (v === "history") renderHistoryView();
+        if (v === "weekly") renderWeeklyView();
+      }
+
+      // ══════════════════════════════
+      // TODAY
+      // ══════════════════════════════
+      function todayCalls() {
+        const today = toDateStr(new Date());
+        return calls.filter((c) => toDateStr(new Date(c.timestamp)) === today);
+      }
+
+      function renderTodayView() {
+        const tc = todayCalls();
+        renderLog(tc, "todayLogList");
+        renderStats(tc, "tStatTotal", "tStatTours", "tStatApps", "tStatAvg");
+        renderBarChart(tc, "todayBarChart");
+        renderDonut(
+          tc,
+          "todayDonutSvg",
+          "todayDonutCenter",
+          "tdLgLeasing",
+          "tdLgApplicant",
+          "tdLgResident",
+          "tdLgOther",
+        );
+      }
+
+      // ── Timer
+      function startCall() {
+        callActive = true;
+        callStart = Date.now();
+        callSeconds = 0;
+        document.getElementById("startBtn").style.display = "none";
+        document.getElementById("stopBtn").style.display = "";
+        document.getElementById("callStatus").textContent = "Call in progress…";
+        document.getElementById("callStatus").classList.add("active");
+        document.getElementById("timerDisplay").classList.add("running");
+        document.getElementById("submitBtn").disabled = false;
+        timerInterval = setInterval(() => {
+          callSeconds = Math.floor((Date.now() - callStart) / 1000);
+          document.getElementById("timerDisplay").textContent =
+            formatTime(callSeconds);
+        }, 1000);
+      }
+      function stopCall() {
+        clearInterval(timerInterval);
+        callActive = false;
+        document.getElementById("startBtn").style.display = "";
+        document.getElementById("stopBtn").style.display = "none";
+        document.getElementById("callStatus").textContent =
+          "Call ended — save below";
+        document.getElementById("callStatus").classList.remove("active");
+        document.getElementById("timerDisplay").classList.remove("running");
+      }
+      function submitCall() {
+        if (callActive) stopCall();
+        const type = document.querySelector('input[name="callType"]:checked');
+        if (!type) {
+          showToast("Please select a call type.");
+          return;
+        }
+        const call = {
+          id: Date.now(),
+          type: type.value,
+          duration: callSeconds,
+          scheduledTour: document.getElementById("chkTour").checked,
+          sentApplication: document.getElementById("chkApp").checked,
+          notes: document.getElementById("notes").value.trim(),
+          timestamp: new Date().toISOString(),
+        };
+        calls.push(call);
+        localStorage.setItem("leasing_calls", JSON.stringify(calls));
+        resetForm();
+        renderTodayView();
+        showToast("Call saved.");
+      }
+      function resetForm() {
+        document
+          .querySelectorAll('input[name="callType"]')
+          .forEach((r) => (r.checked = false));
+        document.getElementById("chkTour").checked = false;
+        document.getElementById("chkApp").checked = false;
+        document.getElementById("notes").value = "";
+        document.getElementById("timerDisplay").textContent = "00:00:00";
+        document.getElementById("callStatus").textContent = "No active call";
+        document.getElementById("submitBtn").disabled = true;
+        callSeconds = 0;
+      }
+      function clearLog() {
+        if (!calls.length) return;
+        if (!confirm("Clear ALL call records? This cannot be undone.")) return;
+        calls = [];
+        localStorage.removeItem("leasing_calls");
+        renderTodayView();
+        showToast("Log cleared.");
+      }
+
+      // ══════════════════════════════
+      // HISTORY
+      // ══════════════════════════════
+      function setChip(el, mode) {
+        histFilter = mode;
+        document
+          .querySelectorAll(".filter-chip")
+          .forEach((c) => c.classList.remove("active"));
+        if (el) el.classList.add("active");
+        if (mode !== "custom") {
+          document.getElementById("histFromDate").value = "";
+          document.getElementById("histToDate").value = "";
+        }
+        renderHistoryView();
+      }
+      function clearDateFilter() {
+        document.getElementById("histFromDate").value = "";
+        document.getElementById("histToDate").value = "";
+        setChip(document.querySelector(".filter-chip"), "all");
+      }
+      function filteredCalls() {
+        const now = new Date();
+        const todayStr = toDateStr(now);
+        const fromEl = document.getElementById("histFromDate");
+        const toEl = document.getElementById("histToDate");
+        if (histFilter === "today")
+          return calls.filter(
+            (c) => toDateStr(new Date(c.timestamp)) === todayStr,
+          );
+        if (histFilter === "week") {
+          const { start, end } = weekRange(0);
+          return calls.filter((c) => {
+            const d = new Date(c.timestamp);
+            return d >= start && d <= end;
+          });
+        }
+        if (histFilter === "month") {
+          return calls.filter((c) => {
+            const d = new Date(c.timestamp);
+            return (
+              d.getMonth() === now.getMonth() &&
+              d.getFullYear() === now.getFullYear()
+            );
+          });
+        }
+        if (histFilter === "custom" && (fromEl.value || toEl.value)) {
+          return calls.filter((c) => {
+            const d = new Date(c.timestamp);
+            const ds = toDateStr(d);
+            if (fromEl.value && ds < fromEl.value) return false;
+            if (toEl.value && ds > toEl.value) return false;
+            return true;
+          });
+        }
+        return calls;
+      }
+      function renderHistoryView() {
+        const fc = filteredCalls();
+        const labels = {
+          all: "All time",
+          today: "Today",
+          week: "This week",
+          month: "This month",
+          custom: "Custom range",
+        };
+        document.getElementById("histPeriodLabel").textContent =
+          `Showing ${fc.length} call${fc.length !== 1 ? "s" : ""} · ${labels[histFilter] || ""}`;
+        document.getElementById("histBarTitle").textContent =
+          `Calls by Type — ${labels[histFilter] || ""}`;
+        renderLog(fc, "histLogList");
+        renderStats(fc, "hStatTotal", "hStatTours", "hStatApps", "hStatAvg");
+        renderBarChart(fc, "histBarChart");
+        renderDonut(
+          fc,
+          "histDonutSvg",
+          "histDonutCenter",
+          "hLgLeasing",
+          "hLgApplicant",
+          "hLgResident",
+          "hLgOther",
+        );
+      }
+
+      // ══════════════════════════════
+      // WEEKLY
+      // ══════════════════════════════
+      function weekRange(offset) {
+        const now = new Date();
+        const day = now.getDay();
+        const start = new Date(now);
+        start.setDate(now.getDate() - day + offset * 7);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+      }
+      function shiftWeek(dir, reset) {
+        if (reset) weekOffset = 0;
+        else weekOffset += dir;
+        renderWeeklyView();
+      }
+      function renderWeeklyView() {
+        const { start, end } = weekRange(weekOffset);
+        const fmt = (d) =>
+          d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        document.getElementById("weekLabel").textContent =
+          `${fmt(start)} – ${fmt(end)}`;
+
+        const weekCalls = calls.filter((c) => {
+          const d = new Date(c.timestamp);
+          return d >= start && d <= end;
+        });
+
+        // Day grid
+        const grid = document.getElementById("weekDayGrid");
+        grid.innerHTML = "";
+        const todayStr = toDateStr(new Date());
+        const days = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(start);
+          d.setDate(start.getDate() + i);
+          const ds = toDateStr(d);
+          const dc = weekCalls.filter(
+            (c) => toDateStr(new Date(c.timestamp)) === ds,
+          );
+          days.push({ d, ds, dc });
+          const isToday = ds === todayStr;
+          const div = document.createElement("div");
+          div.className = "day-card" + (isToday ? " today" : "");
+          div.innerHTML = `<div class="day-name">${DAYS[d.getDay()]}</div><div class="day-num">${d.getDate()}</div><div class="day-count ${dc.length === 0 ? "zero" : ""}">${dc.length} call${dc.length !== 1 ? "s" : ""}</div>`;
+          grid.appendChild(div);
+        }
+
+        // Stats
+        renderStats(
+          weekCalls,
+          "wStatTotal",
+          "wStatTours",
+          "wStatApps",
+          "wStatAvg",
+        );
+
+        // Daily bars
+        const dailyBars = document.getElementById("weekDailyBars");
+        dailyBars.innerHTML = "";
+        const maxDay = Math.max(...days.map((d) => d.dc.length), 1);
+        days.forEach(({ d, dc }) => {
+          const h = Math.round((dc.length / maxDay) * 100);
+          const col = document.createElement("div");
+          col.style.cssText =
+            "flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;";
+          col.innerHTML = `<span style="font-size:.75rem;font-weight:600;color:var(--navy);">${dc.length || ""}</span><div style="width:100%;border-radius:4px 4px 0 0;background:var(--teal);height:${h}px;min-height:${dc.length ? 3 : 0}px;transition:height .3s;"></div><span style="font-size:.65rem;color:var(--muted);font-weight:600;text-transform:uppercase;">${DAYS[d.getDay()]}</span>`;
+          dailyBars.appendChild(col);
+        });
+        const axis = document.createElement("div");
+        axis.style.cssText =
+          "position:absolute;bottom:24px;left:0;right:0;height:2px;background:var(--border);";
+        dailyBars.appendChild(axis);
+
+        // Type chart
+        renderBarChart(weekCalls, "weekTypeChart");
+
+        // Table
+        const tbody = document.getElementById("weekTableBody");
+        tbody.innerHTML = "";
+        let totals = {
+          total: 0,
+          Leasing: 0,
+          Applicant: 0,
+          Resident: 0,
+          Other: 0,
+          tours: 0,
+          apps: 0,
+        };
+        days.forEach(({ d, ds, dc }) => {
+          const row = {
+            total: dc.length,
+            Leasing: 0,
+            Applicant: 0,
+            Resident: 0,
+            Other: 0,
+            tours: 0,
+            apps: 0,
+          };
+          dc.forEach((c) => {
+            row[c.type]++;
+            if (c.scheduledTour) row.tours++;
+            if (c.sentApplication) row.apps++;
+          });
+          Object.keys(totals).forEach((k) => (totals[k] += row[k] || 0));
+          const tr = document.createElement("tr");
+          const isToday = ds === todayStr;
+          tr.innerHTML = `<td style="${isToday ? "font-weight:600;color:var(--teal);" : ""}">${DAYS_FULL[d.getDay()]} ${d.getDate()}</td><td><strong>${row.total}</strong></td><td>${row.Leasing}</td><td>${row.Applicant}</td><td>${row.Resident}</td><td>${row.Other}</td><td>${row.tours || "—"}</td><td>${row.apps || "—"}</td>`;
+          tbody.appendChild(tr);
+        });
+        // Totals row
+        const ttr = document.createElement("tr");
+        ttr.innerHTML = `<td>Week Total</td><td>${totals.total}</td><td>${totals.Leasing}</td><td>${totals.Applicant}</td><td>${totals.Resident}</td><td>${totals.Other}</td><td>${totals.tours || "—"}</td><td>${totals.apps || "—"}</td>`;
+        tbody.appendChild(ttr);
+      }
+
+      // ══════════════════════════════
+      // SHARED RENDERERS
+      // ══════════════════════════════
+      function renderLog(data, elId) {
+        const list = document.getElementById(elId);
+        if (!data.length) {
+          list.innerHTML =
+            '<div class="empty-log">No calls in this period.</div>';
+          return;
+        }
+        list.innerHTML = [...data]
+          .reverse()
+          .map((c) => {
+            const t = new Date(c.timestamp);
+            const timeStr = t.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const dateStr = t.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+            const tags = [
+              c.scheduledTour && "Tour Scheduled",
+              c.sentApplication && "Application Sent",
+            ].filter(Boolean);
+            return `<div class="log-item">
+      <div class="log-item-top">
+        <span class="log-type-badge ${c.type.toLowerCase()}">${c.type}</span>
+        <span class="log-time">${dateStr} · ${timeStr} · ${formatTime(c.duration)}</span>
+      </div>
+      ${tags.length ? `<div class="log-actions-row">${tags.map((t) => `<span class="log-tag">${t}</span>`).join("")}</div>` : ""}
+      ${c.notes ? `<div class="log-notes-text">${c.notes}</div>` : ""}
+    </div>`;
+          })
+          .join("");
+      }
+
+      function renderStats(data, idTotal, idTours, idApps, idAvg) {
+        const total = data.length;
+        const tours = data.filter((c) => c.scheduledTour).length;
+        const apps = data.filter((c) => c.sentApplication).length;
+        const avg = total
+          ? Math.round(data.reduce((a, c) => a + c.duration, 0) / total)
+          : 0;
+        document.getElementById(idTotal).textContent = total;
+        document.getElementById(idTours).textContent = tours;
+        document.getElementById(idApps).textContent = apps;
+        document.getElementById(idAvg).textContent = total
+          ? formatTime(avg)
+          : "—";
+      }
+
+      function countsByType(data) {
+        return {
+          Leasing: data.filter((c) => c.type === "Leasing").length,
+          Applicant: data.filter((c) => c.type === "Applicant").length,
+          Resident: data.filter((c) => c.type === "Resident").length,
+          Other: data.filter((c) => c.type === "Other").length,
+        };
+      }
+
+      function renderBarChart(data, elId) {
+        const counts = countsByType(data);
+        const max = Math.max(...Object.values(counts), 1);
+        const MAX_H = 160;
+        const chart = document.getElementById(elId);
+        chart.innerHTML = '<div class="bar-axis"></div>';
+        Object.entries(counts).forEach(([label, val]) => {
+          const h = Math.round((val / max) * MAX_H);
+          const div = document.createElement("div");
+          div.className = "bar-group";
+          div.innerHTML = `<span class="bar-val">${val}</span><div class="bar" style="height:${h}px;background:${COLORS[label]}"></div><span class="bar-label">${label}</span>`;
+          chart.appendChild(div);
+        });
+      }
+
+      function renderDonut(data, svgId, centerId, lgL, lgA, lgR, lgO) {
+        const counts = countsByType(data);
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const svg = document.getElementById(svgId);
+        document.getElementById(centerId).textContent = total;
+        svg.querySelectorAll(".arc").forEach((e) => e.remove());
+        if (total > 0) {
+          const R = 55,
+            CX = 70,
+            CY = 70,
+            SW = 22,
+            circ = 2 * Math.PI * R;
+          let offset = 0;
+          Object.entries(counts).forEach(([type, count]) => {
+            if (!count) return;
+            const dash = (count / total) * circ;
+            const c = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "circle",
+            );
+            c.setAttribute("class", "arc");
+            c.setAttribute("cx", CX);
+            c.setAttribute("cy", CY);
+            c.setAttribute("r", R);
+            c.setAttribute("fill", "none");
+            c.setAttribute("stroke", COLORS[type]);
+            c.setAttribute("stroke-width", SW);
+            c.setAttribute("stroke-dasharray", `${dash} ${circ - dash}`);
+            c.setAttribute("stroke-dashoffset", circ / 4 - offset);
+            c.setAttribute("transform", `rotate(-90 ${CX} ${CY})`);
+            svg.insertBefore(c, document.getElementById(centerId));
+            offset += dash;
+          });
+        }
+        document.getElementById(lgL).textContent = counts.Leasing;
+        document.getElementById(lgA).textContent = counts.Applicant;
+        document.getElementById(lgR).textContent = counts.Resident;
+        document.getElementById(lgO).textContent = counts.Other;
+      }
+
+      // ══════════════════════════════
+      // EXPORT
+      // ══════════════════════════════
+      function downloadCSV(mode) {
+        let data, filename;
+        if (mode === "today") {
+          data = todayCalls();
+          filename = `leasing-calls-today-${toDateStr(new Date())}.csv`;
+        } else if (mode === "filtered") {
+          data = filteredCalls();
+          filename = `leasing-calls-filtered-${toDateStr(new Date())}.csv`;
+        } else if (mode === "week-report") {
+          exportWeekReport();
+          return;
+        } else {
+          data = calls;
+          filename = `leasing-calls-all-${toDateStr(new Date())}.csv`;
+        }
+        if (!data.length) {
+          showToast("No calls to export.");
+          return;
+        }
+        const header = [
+          "Date",
+          "Time",
+          "Type",
+          "Duration",
+          "Tour Scheduled",
+          "Application Sent",
+          "Notes",
+        ];
+        const rows = data.map((c) => {
+          const d = new Date(c.timestamp);
+          return [
+            d.toLocaleDateString(),
+            d.toLocaleTimeString(),
+            c.type,
+            formatTime(c.duration),
+            c.scheduledTour ? "Yes" : "No",
+            c.sentApplication ? "Yes" : "No",
+            `"${(c.notes || "").replace(/"/g, '""')}"`,
+          ].join(",");
+        });
+        triggerCSV([header.join(","), ...rows].join("\n"), filename);
+      }
+
+      function exportWeekReport() {
+        const { start, end } = weekRange(weekOffset);
+        const weekCalls = calls.filter((c) => {
+          const d = new Date(c.timestamp);
+          return d >= start && d <= end;
+        });
+        if (!weekCalls.length) {
+          showToast("No calls this week.");
+          return;
+        }
+        const lines = [
+          "Leasing Operations — Weekly Call Report",
+          `Week: ${start.toLocaleDateString()} – ${end.toLocaleDateString()}`,
+          "",
+          "=== SUMMARY ===",
+          `Total Calls,${weekCalls.length}`,
+          `Tours Scheduled,${weekCalls.filter((c) => c.scheduledTour).length}`,
+          `Applications Sent,${weekCalls.filter((c) => c.sentApplication).length}`,
+          `Leasing Calls,${weekCalls.filter((c) => c.type === "Leasing").length}`,
+          `Applicant Calls,${weekCalls.filter((c) => c.type === "Applicant").length}`,
+          `Resident Calls,${weekCalls.filter((c) => c.type === "Resident").length}`,
+          `Other Calls,${weekCalls.filter((c) => c.type === "Other").length}`,
+          "",
+          "=== ALL CALLS ===",
+          "Date,Time,Type,Duration,Tour Scheduled,Application Sent,Notes",
+        ];
+        weekCalls.forEach((c) => {
+          const d = new Date(c.timestamp);
+          lines.push(
+            [
+              d.toLocaleDateString(),
+              d.toLocaleTimeString(),
+              c.type,
+              formatTime(c.duration),
+              c.scheduledTour ? "Yes" : "No",
+              c.sentApplication ? "Yes" : "No",
+              `"${(c.notes || "").replace(/"/g, '""')}"`,
+            ].join(","),
+          );
+        });
+        triggerCSV(
+          lines.join("\n"),
+          `leasing-week-report-${toDateStr(start)}.csv`,
+        );
+      }
+
+      function triggerCSV(csv, filename) {
+        const blob = new Blob([csv], { type: "text/csv" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+      }
+
+      // ══════════════════════════════
+      // HELPERS
+      // ══════════════════════════════
+      function formatTime(sec) {
+        const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+        const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+        const s = String(sec % 60).padStart(2, "0");
+        return `${h}:${m}:${s}`;
+      }
+      function toDateStr(d) {
+        return d.toISOString().slice(0, 10);
+      }
+      function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 2800);
+      }
+    </script>
+  </body>
+</html>
