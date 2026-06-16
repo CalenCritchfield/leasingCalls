@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leasing Operations Call Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap");
       *,
@@ -795,12 +797,339 @@
           flex-direction: column;
         }
       }
+
+      /* ══════════════════════════════════════
+         PRINT / PDF STYLES
+         ══════════════════════════════════════ */
+      #pdfOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+      #pdfOverlay.open {
+        display: flex;
+      }
+      #pdfPreview {
+        background: white;
+        width: 800px;
+        max-width: 96vw;
+        max-height: 90vh;
+        overflow-y: auto;
+        border-radius: 12px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+      }
+      #pdfPreviewToolbar {
+        position: sticky;
+        top: 0;
+        background: var(--navy);
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 12px 12px 0 0;
+        z-index: 10;
+      }
+      #pdfPreviewToolbar span {
+        color: white;
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      #pdfPreviewToolbar .tb-actions {
+        display: flex;
+        gap: 10px;
+      }
+      .tb-btn {
+        padding: 8px 18px;
+        border-radius: 6px;
+        border: none;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .tb-btn-print {
+        background: var(--gold);
+        color: var(--navy);
+      }
+      .tb-btn-print:hover {
+        background: #b8963e;
+      }
+      .tb-btn-close {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+      }
+      .tb-btn-close:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      /* The actual printable report content */
+      #reportContent {
+        padding: 40px 48px;
+        font-family: "DM Sans", sans-serif;
+        color: #1b2a3b;
+      }
+      .rpt-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        border-bottom: 3px solid #1b2a3b;
+        padding-bottom: 18px;
+        margin-bottom: 28px;
+      }
+      .rpt-logo {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.6rem;
+        color: #1b2a3b;
+      }
+      .rpt-logo span {
+        color: #c9a84c;
+      }
+      .rpt-meta {
+        text-align: right;
+        font-size: 0.8rem;
+        color: #6b7280;
+        line-height: 1.7;
+      }
+      .rpt-meta strong {
+        display: block;
+        font-size: 1rem;
+        color: #1b2a3b;
+        font-weight: 600;
+      }
+      .rpt-section-title {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 14px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #ddd8d0;
+      }
+      .rpt-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 32px;
+      }
+      .rpt-stat {
+        background: #f7f4ef;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        border: 1px solid #ddd8d0;
+      }
+      .rpt-stat-num {
+        font-family: "DM Serif Display", serif;
+        font-size: 2rem;
+        color: #1b2a3b;
+        line-height: 1;
+      }
+      .rpt-stat-label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-top: 5px;
+      }
+      .rpt-charts-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 32px;
+      }
+      .rpt-chart-box {
+        background: #f7f4ef;
+        border: 1px solid #ddd8d0;
+        border-radius: 8px;
+        padding: 20px;
+      }
+      .rpt-chart-title {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 16px;
+      }
+      /* Inline bar chart for report */
+      .rpt-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        height: 130px;
+        position: relative;
+        padding-bottom: 22px;
+      }
+      .rpt-bar-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        height: 100%;
+        justify-content: flex-end;
+      }
+      .rpt-bar-val {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #1b2a3b;
+      }
+      .rpt-bar-fill {
+        width: 100%;
+        border-radius: 4px 4px 0 0;
+        min-height: 3px;
+      }
+      .rpt-bar-lbl {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-align: center;
+      }
+      .rpt-bar-axis {
+        position: absolute;
+        bottom: 22px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #ddd8d0;
+      }
+      /* Donut legend for report */
+      .rpt-donut-wrap {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .rpt-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        flex: 1;
+      }
+      .rpt-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.78rem;
+        color: #1b2a3b;
+      }
+      .rpt-legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .rpt-legend-pct {
+        font-weight: 700;
+        margin-left: auto;
+        color: #1b2a3b;
+      }
+      /* Call log table in report */
+      .rpt-log-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.78rem;
+        margin-bottom: 32px;
+      }
+      .rpt-log-table th {
+        text-align: left;
+        padding: 9px 10px;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: #6b7280;
+        border-bottom: 2px solid #1b2a3b;
+        background: white;
+      }
+      .rpt-log-table td {
+        padding: 9px 10px;
+        border-bottom: 1px solid #ddd8d0;
+        vertical-align: top;
+        line-height: 1.4;
+      }
+      .rpt-log-table tr:last-child td {
+        border-bottom: none;
+      }
+      .rpt-log-table tr:nth-child(even) td {
+        background: #f7f4ef;
+      }
+      .rpt-type-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      .rpt-type-pill.leasing {
+        background: #eaf5f5;
+        color: #2d6e6e;
+      }
+      .rpt-type-pill.applicant {
+        background: #f0eaf8;
+        color: #6b3f9e;
+      }
+      .rpt-type-pill.resident {
+        background: #fbf8f0;
+        color: #9e6b1a;
+      }
+      .rpt-type-pill.other {
+        background: #f0f0f0;
+        color: #555;
+      }
+      .rpt-footer {
+        border-top: 1px solid #ddd8d0;
+        padding-top: 14px;
+        font-size: 0.7rem;
+        color: #9ca3af;
+        display: flex;
+        justify-content: space-between;
+      }
     </style>
   </head>
   <body>
     <header>
       <div class="logo">Leasing <span>Operations</span></div>
-      <div class="header-date" id="headerDate"></div>
+      <div style="display: flex; align-items: center; gap: 18px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <label
+            for="agentNameInput"
+            style="
+              color: #8fa3b1;
+              font-size: 0.75rem;
+              font-weight: 500;
+              white-space: nowrap;
+            "
+            >Agent</label
+          >
+          <input
+            id="agentNameInput"
+            type="text"
+            placeholder="Your name…"
+            oninput="saveAgentName()"
+            style="
+              background: rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.2);
+              border-radius: 6px;
+              padding: 7px 12px;
+              color: white;
+              font-family: &quot;DM Sans&quot;, sans-serif;
+              font-size: 0.85rem;
+              outline: none;
+              width: 160px;
+            "
+          />
+        </div>
+        <div class="header-date" id="headerDate"></div>
+      </div>
     </header>
 
     <div class="view-tabs">
@@ -840,7 +1169,8 @@
                   id="typeLeasing"
                   value="Leasing"
                   class="type-option"
-                /><label for="typeLeasing" class="type-label"
+                />
+                <label for="typeLeasing" class="type-label"
                   ><span class="type-dot"></span>Leasing</label
                 >
               </div>
@@ -851,7 +1181,8 @@
                   id="typeApplicant"
                   value="Applicant"
                   class="type-option"
-                /><label for="typeApplicant" class="type-label"
+                />
+                <label for="typeApplicant" class="type-label"
                   ><span class="type-dot"></span>Applicant</label
                 >
               </div>
@@ -862,7 +1193,8 @@
                   id="typeResident"
                   value="Resident"
                   class="type-option"
-                /><label for="typeResident" class="type-label"
+                />
+                <label for="typeResident" class="type-label"
                   ><span class="type-dot"></span>Resident</label
                 >
               </div>
@@ -873,25 +1205,26 @@
                   id="typeOther"
                   value="Other"
                   class="type-option"
-                /><label for="typeOther" class="type-label"
+                />
+                <label for="typeOther" class="type-label"
                   ><span class="type-dot"></span>Other</label
                 >
               </div>
             </div>
             <label class="field-label">Actions Taken</label>
             <div class="action-checks">
-              <label class="check-label"
-                ><input type="checkbox" id="chkTour" /><span
+              <label class="check-label">
+                <input type="checkbox" id="chkTour" /><span
                   class="custom-check"
                 ></span
-                >Scheduled a Tour</label
-              >
-              <label class="check-label"
-                ><input type="checkbox" id="chkApp" /><span
+                >Scheduled a Tour
+              </label>
+              <label class="check-label">
+                <input type="checkbox" id="chkApp" /><span
                   class="custom-check"
                 ></span
-                >Sent an Application</label
-              >
+                >Sent an Application
+              </label>
             </div>
             <label class="field-label" for="notes">Notes</label>
             <textarea
@@ -918,8 +1251,8 @@
                 Today's Calls
               </div>
               <div class="log-actions">
-                <button class="btn btn-gold" onclick="downloadCSV('today')">
-                  ↓ Export
+                <button class="btn btn-gold" onclick="openPdfReport()">
+                  ↓ Download PDF
                 </button>
                 <button class="btn btn-outline-red" onclick="clearLog()">
                   Clear All
@@ -1070,7 +1403,6 @@
             id="histLogList"
           ></div>
         </div>
-
         <div class="stats-row" style="margin-top: 0">
           <div class="stat-card">
             <div class="stat-num" id="hStatTotal">0</div>
@@ -1089,7 +1421,6 @@
             <div class="stat-label">Avg Call Time</div>
           </div>
         </div>
-
         <div class="charts-grid">
           <div class="card">
             <div class="card-title" id="histBarTitle">Calls by Type</div>
@@ -1180,11 +1511,7 @@
             </button>
           </div>
         </div>
-
-        <!-- Day picker -->
         <div class="week-grid" id="weekDayGrid"></div>
-
-        <!-- Weekly stats -->
         <div class="stats-row" style="margin-bottom: 28px">
           <div class="stat-card">
             <div class="stat-num" id="wStatTotal">0</div>
@@ -1203,9 +1530,7 @@
             <div class="stat-label">Avg Call Time</div>
           </div>
         </div>
-
         <div class="charts-grid" style="margin-bottom: 28px">
-          <!-- Daily bar chart -->
           <div class="card">
             <div class="card-title">Calls Per Day</div>
             <div
@@ -1220,7 +1545,6 @@
               id="weekDailyBars"
             ></div>
           </div>
-          <!-- Type breakdown -->
           <div class="card">
             <div class="card-title">Week — Calls by Type</div>
             <div class="chart-wrapper" id="weekTypeChart">
@@ -1228,8 +1552,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Per-day breakdown table -->
         <div class="card">
           <div class="card-title">Day-by-Day Breakdown</div>
           <table class="week-summary-table" id="weekTable">
@@ -1247,6 +1569,30 @@
             </thead>
             <tbody id="weekTableBody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ PDF REPORT OVERLAY ═══════════════ -->
+    <div id="pdfOverlay">
+      <div id="pdfPreview">
+        <div id="pdfPreviewToolbar">
+          <span>Daily Call Report — Preview</span>
+          <div class="tb-actions">
+            <button
+              class="tb-btn tb-btn-print"
+              id="pdfDownloadBtn"
+              onclick="downloadPdf()"
+            >
+              ⬇ Download PDF
+            </button>
+            <button class="tb-btn tb-btn-close" onclick="closePdfReport()">
+              ✕ Close
+            </button>
+          </div>
+        </div>
+        <div id="reportContent">
+          <!-- Populated dynamically -->
         </div>
       </div>
     </div>
@@ -1271,6 +1617,24 @@
         "Friday",
         "Saturday",
       ];
+      const TZ = "America/Chicago";
+
+      // ── Chicago time helpers (auto DST via Intl API)
+      function toDateStrChi(date) {
+        return new Date(date).toLocaleDateString("en-CA", { timeZone: TZ }); // YYYY-MM-DD
+      }
+      function fmtDateChi(date, opts) {
+        return new Date(date).toLocaleDateString("en-US", {
+          timeZone: TZ,
+          ...opts,
+        });
+      }
+      function fmtTimeChi(date, opts) {
+        return new Date(date).toLocaleTimeString("en-US", {
+          timeZone: TZ,
+          ...opts,
+        });
+      }
 
       // ── State
       let timerInterval = null,
@@ -1280,16 +1644,29 @@
       let calls = JSON.parse(localStorage.getItem("leasing_calls") || "[]");
       let currentView = "today";
       let histFilter = "all";
-      let weekOffset = 0; // 0 = current week
+      let weekOffset = 0;
+
+      // ── Agent name (persisted)
+      function saveAgentName() {
+        const val = document.getElementById("agentNameInput").value.trim();
+        localStorage.setItem("leasing_agent_name", val);
+      }
+      function getAgentName() {
+        return localStorage.getItem("leasing_agent_name") || "";
+      }
 
       // ── Init
+      const savedName = getAgentName();
+      if (savedName)
+        document.getElementById("agentNameInput").value = savedName;
+
       document.getElementById("headerDate").textContent =
-        new Date().toLocaleDateString("en-US", {
+        fmtDateChi(new Date(), {
           weekday: "long",
           year: "numeric",
           month: "long",
           day: "numeric",
-        });
+        }) + " • Chicago";
       renderTodayView();
 
       // ── View switching
@@ -1312,8 +1689,10 @@
       // TODAY
       // ══════════════════════════════
       function todayCalls() {
-        const today = toDateStr(new Date());
-        return calls.filter((c) => toDateStr(new Date(c.timestamp)) === today);
+        const today = toDateStrChi(new Date());
+        return calls.filter(
+          (c) => toDateStrChi(new Date(c.timestamp)) === today,
+        );
       }
 
       function renderTodayView() {
@@ -1403,6 +1782,269 @@
       }
 
       // ══════════════════════════════
+      // PDF REPORT
+      // ══════════════════════════════
+      function openPdfReport() {
+        const tc = todayCalls();
+        if (!tc.length) {
+          showToast("No calls today to export.");
+          return;
+        }
+
+        const counts = countsByType(tc);
+        const total = tc.length;
+        const tours = tc.filter((c) => c.scheduledTour).length;
+        const apps = tc.filter((c) => c.sentApplication).length;
+        const avgSec = Math.round(
+          tc.reduce((a, c) => a + c.duration, 0) / total,
+        );
+        const MAX_H = 100;
+        const maxCount = Math.max(...Object.values(counts), 1);
+
+        // Build bar chart HTML
+        const barsHtml = Object.entries(counts)
+          .map(([label, val]) => {
+            const h = Math.round((val / maxCount) * MAX_H);
+            return `<div class="rpt-bar-group">
+            <span class="rpt-bar-val">${val}</span>
+            <div class="rpt-bar-fill" style="height:${h}px;background:${COLORS[label]};"></div>
+            <span class="rpt-bar-lbl">${label}</span>
+          </div>`;
+          })
+          .join("");
+
+        // Build donut SVG
+        const R = 52,
+          CX = 60,
+          CY = 60,
+          SW = 20,
+          circ = 2 * Math.PI * R;
+        let arcOffset = 0;
+        let arcElems = "";
+        Object.entries(counts).forEach(([type, count]) => {
+          if (!count) return;
+          const dash = (count / total) * circ;
+          arcElems += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${COLORS[type]}" stroke-width="${SW}" stroke-dasharray="${dash} ${circ - dash}" stroke-dashoffset="${circ / 4 - arcOffset}" transform="rotate(-90 ${CX} ${CY})"/>`;
+          arcOffset += dash;
+        });
+        const donutSvg = `<svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#EEEBE4" stroke-width="${SW}"/>
+          ${arcElems}
+          <text x="${CX}" y="${CY + 7}" text-anchor="middle" font-family="Georgia,serif" font-size="20" fill="#1b2a3b">${total}</text>
+        </svg>`;
+
+        // Donut legend
+        const legendHtml = Object.entries(counts)
+          .map(([label, val]) => {
+            const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+            return `<div class="rpt-legend-item">
+            <span class="rpt-legend-dot" style="background:${COLORS[label]}"></span>
+            ${label}
+            <span class="rpt-legend-pct">${val} <span style="font-weight:400;color:#9ca3af;">(${pct}%)</span></span>
+          </div>`;
+          })
+          .join("");
+
+        // Call log table rows
+        const logRows = [...tc]
+          .reverse()
+          .map((c) => {
+            const d = new Date(c.timestamp);
+            const timeStr = fmtTimeChi(d, {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const actions =
+              [c.scheduledTour && "Tour", c.sentApplication && "Application"]
+                .filter(Boolean)
+                .join(", ") || "—";
+            const notes = c.notes || "—";
+            return `<tr>
+            <td>${timeStr}</td>
+            <td><span class="rpt-type-pill ${c.type.toLowerCase()}">${c.type}</span></td>
+            <td>${formatTime(c.duration)}</td>
+            <td>${actions}</td>
+            <td style="color:#6b7280;font-style:italic;">${notes}</td>
+          </tr>`;
+          })
+          .join("");
+
+        const agentName = getAgentName();
+        const dateStr = fmtDateChi(new Date(), {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const generatedAt =
+          fmtTimeChi(new Date(), { hour: "2-digit", minute: "2-digit" }) +
+          " CT";
+
+        document.getElementById("reportContent").innerHTML = `
+          <div class="rpt-header">
+            <div>
+              <div class="rpt-logo">Leasing <span>Operations</span></div>
+              <div style="font-size:0.8rem;color:#6b7280;margin-top:4px;">Daily Call Report</div>
+              ${agentName ? `<div style="font-size:0.85rem;color:#1b2a3b;margin-top:6px;font-weight:600;">Agent: ${agentName}</div>` : ""}
+            </div>
+            <div class="rpt-meta">
+              <strong>${dateStr}</strong>
+              Generated at ${generatedAt}
+            </div>
+          </div>
+
+          <div class="rpt-section-title">Summary</div>
+          <div class="rpt-stats">
+            <div class="rpt-stat">
+              <div class="rpt-stat-num">${total}</div>
+              <div class="rpt-stat-label">Total Calls</div>
+            </div>
+            <div class="rpt-stat">
+              <div class="rpt-stat-num">${tours}</div>
+              <div class="rpt-stat-label">Tours Scheduled</div>
+            </div>
+            <div class="rpt-stat">
+              <div class="rpt-stat-num">${apps}</div>
+              <div class="rpt-stat-label">Applications Sent</div>
+            </div>
+            <div class="rpt-stat">
+              <div class="rpt-stat-num" style="font-size:1.4rem;">${formatTime(avgSec)}</div>
+              <div class="rpt-stat-label">Avg Call Time</div>
+            </div>
+          </div>
+
+          <div class="rpt-charts-row">
+            <div class="rpt-chart-box">
+              <div class="rpt-chart-title">Calls by Type</div>
+              <div class="rpt-bars">
+                <div class="rpt-bar-axis"></div>
+                ${barsHtml}
+              </div>
+            </div>
+            <div class="rpt-chart-box">
+              <div class="rpt-chart-title">Distribution</div>
+              <div class="rpt-donut-wrap">
+                ${donutSvg}
+                <div class="rpt-legend">${legendHtml}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rpt-section-title">Call Log (${total} call${total !== 1 ? "s" : ""})</div>
+          <table class="rpt-log-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Duration</th>
+                <th>Actions</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>${logRows}</tbody>
+          </table>
+
+          <div class="rpt-footer">
+            <span>Leasing Operations Call Tracker${agentName ? " — " + agentName : ""}</span>
+            <span>${dateStr} at ${generatedAt}</span>
+          </div>
+        `;
+
+        document.getElementById("pdfOverlay").classList.add("open");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closePdfReport() {
+        document.getElementById("pdfOverlay").classList.remove("open");
+        document.body.style.overflow = "";
+      }
+
+      async function downloadPdf() {
+        const btn = document.getElementById("pdfDownloadBtn");
+        btn.textContent = "Generating…";
+        btn.disabled = true;
+
+        try {
+          const { jsPDF } = window.jspdf;
+          const content = document.getElementById("reportContent");
+
+          const canvas = await html2canvas(content, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+          });
+
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF({
+            orientation: "portrait",
+            unit: "mm",
+            format: "a4",
+          });
+
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
+          const margin = 10;
+          const usableW = pageW - margin * 2;
+          const imgH = (canvas.height * usableW) / canvas.width;
+
+          let yPos = margin;
+          let remainingH = imgH;
+          let srcY = 0;
+
+          // Slice across pages if content is taller than one page
+          while (remainingH > 0) {
+            const sliceH = Math.min(remainingH, pageH - margin * 2);
+            const sliceCanvas = document.createElement("canvas");
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = (sliceH / usableW) * canvas.width;
+            const ctx = sliceCanvas.getContext("2d");
+            ctx.drawImage(
+              canvas,
+              0,
+              srcY * (canvas.width / usableW),
+              canvas.width,
+              sliceCanvas.height,
+              0,
+              0,
+              sliceCanvas.width,
+              sliceCanvas.height,
+            );
+            if (srcY > 0) {
+              pdf.addPage();
+              yPos = margin;
+            }
+            pdf.addImage(
+              sliceCanvas.toDataURL("image/png"),
+              "PNG",
+              margin,
+              yPos,
+              usableW,
+              sliceH,
+            );
+            srcY += sliceH;
+            remainingH -= sliceH;
+          }
+
+          const dateStr = toDateStrChi(new Date());
+          pdf.save(`leasing-daily-report-${dateStr}.pdf`);
+        } catch (e) {
+          showToast("PDF generation failed. Please try again.");
+          console.error(e);
+        }
+
+        btn.textContent = "⬇ Download PDF";
+        btn.disabled = false;
+      }
+
+      // Close overlay on background click
+      document
+        .getElementById("pdfOverlay")
+        .addEventListener("click", function (e) {
+          if (e.target === this) closePdfReport();
+        });
+
+      // ══════════════════════════════
       // HISTORY
       // ══════════════════════════════
       function setChip(el, mode) {
@@ -1424,12 +2066,12 @@
       }
       function filteredCalls() {
         const now = new Date();
-        const todayStr = toDateStr(now);
+        const todayStr = toDateStrChi(now);
         const fromEl = document.getElementById("histFromDate");
         const toEl = document.getElementById("histToDate");
         if (histFilter === "today")
           return calls.filter(
-            (c) => toDateStr(new Date(c.timestamp)) === todayStr,
+            (c) => toDateStrChi(new Date(c.timestamp)) === todayStr,
           );
         if (histFilter === "week") {
           const { start, end } = weekRange(0);
@@ -1450,7 +2092,7 @@
         if (histFilter === "custom" && (fromEl.value || toEl.value)) {
           return calls.filter((c) => {
             const d = new Date(c.timestamp);
-            const ds = toDateStr(d);
+            const ds = toDateStrChi(d);
             if (fromEl.value && ds < fromEl.value) return false;
             if (toEl.value && ds > toEl.value) return false;
             return true;
@@ -1489,15 +2131,20 @@
       // WEEKLY
       // ══════════════════════════════
       function weekRange(offset) {
-        const now = new Date();
-        const day = now.getDay();
-        const start = new Date(now);
-        start.setDate(now.getDate() - day + offset * 7);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 6);
-        end.setHours(23, 59, 59, 999);
-        return { start, end };
+        // Compute start-of-week in Chicago time
+        const nowChi = new Date(
+          new Date().toLocaleString("en-US", { timeZone: TZ }),
+        );
+        const day = nowChi.getDay();
+        const startChi = new Date(nowChi);
+        startChi.setDate(nowChi.getDate() - day + offset * 7);
+        startChi.setHours(0, 0, 0, 0);
+        const endChi = new Date(startChi);
+        endChi.setDate(startChi.getDate() + 6);
+        endChi.setHours(23, 59, 59, 999);
+        // Convert back to UTC-based Date objects for comparison with ISO timestamps
+        // We use date strings to filter rather than direct comparison
+        return { start: startChi, end: endChi };
       }
       function shiftWeek(dir, reset) {
         if (reset) weekOffset = 0;
@@ -1510,23 +2157,20 @@
           d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
         document.getElementById("weekLabel").textContent =
           `${fmt(start)} – ${fmt(end)}`;
-
         const weekCalls = calls.filter((c) => {
           const d = new Date(c.timestamp);
           return d >= start && d <= end;
         });
-
-        // Day grid
         const grid = document.getElementById("weekDayGrid");
         grid.innerHTML = "";
-        const todayStr = toDateStr(new Date());
+        const todayStr = toDateStrChi(new Date());
         const days = [];
         for (let i = 0; i < 7; i++) {
           const d = new Date(start);
           d.setDate(start.getDate() + i);
-          const ds = toDateStr(d);
+          const ds = toDateStrChi(d);
           const dc = weekCalls.filter(
-            (c) => toDateStr(new Date(c.timestamp)) === ds,
+            (c) => toDateStrChi(new Date(c.timestamp)) === ds,
           );
           days.push({ d, ds, dc });
           const isToday = ds === todayStr;
@@ -1535,8 +2179,6 @@
           div.innerHTML = `<div class="day-name">${DAYS[d.getDay()]}</div><div class="day-num">${d.getDate()}</div><div class="day-count ${dc.length === 0 ? "zero" : ""}">${dc.length} call${dc.length !== 1 ? "s" : ""}</div>`;
           grid.appendChild(div);
         }
-
-        // Stats
         renderStats(
           weekCalls,
           "wStatTotal",
@@ -1544,8 +2186,6 @@
           "wStatApps",
           "wStatAvg",
         );
-
-        // Daily bars
         const dailyBars = document.getElementById("weekDailyBars");
         dailyBars.innerHTML = "";
         const maxDay = Math.max(...days.map((d) => d.dc.length), 1);
@@ -1561,11 +2201,7 @@
         axis.style.cssText =
           "position:absolute;bottom:24px;left:0;right:0;height:2px;background:var(--border);";
         dailyBars.appendChild(axis);
-
-        // Type chart
         renderBarChart(weekCalls, "weekTypeChart");
-
-        // Table
         const tbody = document.getElementById("weekTableBody");
         tbody.innerHTML = "";
         let totals = {
@@ -1598,7 +2234,6 @@
           tr.innerHTML = `<td style="${isToday ? "font-weight:600;color:var(--teal);" : ""}">${DAYS_FULL[d.getDay()]} ${d.getDate()}</td><td><strong>${row.total}</strong></td><td>${row.Leasing}</td><td>${row.Applicant}</td><td>${row.Resident}</td><td>${row.Other}</td><td>${row.tours || "—"}</td><td>${row.apps || "—"}</td>`;
           tbody.appendChild(tr);
         });
-        // Totals row
         const ttr = document.createElement("tr");
         ttr.innerHTML = `<td>Week Total</td><td>${totals.total}</td><td>${totals.Leasing}</td><td>${totals.Applicant}</td><td>${totals.Resident}</td><td>${totals.Other}</td><td>${totals.tours || "—"}</td><td>${totals.apps || "—"}</td>`;
         tbody.appendChild(ttr);
@@ -1618,26 +2253,23 @@
           .reverse()
           .map((c) => {
             const t = new Date(c.timestamp);
-            const timeStr = t.toLocaleTimeString("en-US", {
+            const timeStr = fmtTimeChi(t, {
               hour: "2-digit",
               minute: "2-digit",
             });
-            const dateStr = t.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            });
+            const dateStr = fmtDateChi(t, { month: "short", day: "numeric" });
             const tags = [
               c.scheduledTour && "Tour Scheduled",
               c.sentApplication && "Application Sent",
             ].filter(Boolean);
             return `<div class="log-item">
-      <div class="log-item-top">
-        <span class="log-type-badge ${c.type.toLowerCase()}">${c.type}</span>
-        <span class="log-time">${dateStr} · ${timeStr} · ${formatTime(c.duration)}</span>
-      </div>
-      ${tags.length ? `<div class="log-actions-row">${tags.map((t) => `<span class="log-tag">${t}</span>`).join("")}</div>` : ""}
-      ${c.notes ? `<div class="log-notes-text">${c.notes}</div>` : ""}
-    </div>`;
+            <div class="log-item-top">
+              <span class="log-type-badge ${c.type.toLowerCase()}">${c.type}</span>
+              <span class="log-time">${dateStr} · ${timeStr} · ${formatTime(c.duration)}</span>
+            </div>
+            ${tags.length ? `<div class="log-actions-row">${tags.map((t) => `<span class="log-tag">${t}</span>`).join("")}</div>` : ""}
+            ${c.notes ? `<div class="log-notes-text">${c.notes}</div>` : ""}
+          </div>`;
           })
           .join("");
       }
@@ -1722,22 +2354,19 @@
       }
 
       // ══════════════════════════════
-      // EXPORT
+      // EXPORT (CSV — history/weekly)
       // ══════════════════════════════
       function downloadCSV(mode) {
         let data, filename;
-        if (mode === "today") {
-          data = todayCalls();
-          filename = `leasing-calls-today-${toDateStr(new Date())}.csv`;
-        } else if (mode === "filtered") {
+        if (mode === "filtered") {
           data = filteredCalls();
-          filename = `leasing-calls-filtered-${toDateStr(new Date())}.csv`;
+          filename = `leasing-calls-filtered-${toDateStrChi(new Date())}.csv`;
         } else if (mode === "week-report") {
           exportWeekReport();
           return;
         } else {
           data = calls;
-          filename = `leasing-calls-all-${toDateStr(new Date())}.csv`;
+          filename = `leasing-calls-all-${toDateStrChi(new Date())}.csv`;
         }
         if (!data.length) {
           showToast("No calls to export.");
@@ -1809,7 +2438,7 @@
         });
         triggerCSV(
           lines.join("\n"),
-          `leasing-week-report-${toDateStr(start)}.csv`,
+          `leasing-week-report-${toDateStrChi(start)}.csv`,
         );
       }
 
