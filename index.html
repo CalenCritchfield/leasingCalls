@@ -2372,7 +2372,9 @@
           showToast("No calls to export.");
           return;
         }
+        const agentExportName = getAgentName() || "Unknown";
         const header = [
+          "Agent",
           "Date",
           "Time",
           "Type",
@@ -2384,8 +2386,17 @@
         const rows = data.map((c) => {
           const d = new Date(c.timestamp);
           return [
-            d.toLocaleDateString(),
-            d.toLocaleTimeString(),
+            `"${agentExportName.replace(/"/g, '""')}"`,
+            fmtDateChi(d, {
+              month: "2-digit",
+              day: "2-digit",
+              year: "numeric",
+            }),
+            fmtTimeChi(d, {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }),
             c.type,
             formatTime(c.duration),
             c.scheduledTour ? "Yes" : "No",
@@ -2420,14 +2431,24 @@
           `Other Calls,${weekCalls.filter((c) => c.type === "Other").length}`,
           "",
           "=== ALL CALLS ===",
-          "Date,Time,Type,Duration,Tour Scheduled,Application Sent,Notes",
+          "Agent,Date,Time,Type,Duration,Tour Scheduled,Application Sent,Notes",
         ];
+        const agentWeekName = getAgentName() || "Unknown";
         weekCalls.forEach((c) => {
           const d = new Date(c.timestamp);
           lines.push(
             [
-              d.toLocaleDateString(),
-              d.toLocaleTimeString(),
+              `"${agentWeekName.replace(/"/g, '""')}"`,
+              fmtDateChi(d, {
+                month: "2-digit",
+                day: "2-digit",
+                year: "numeric",
+              }),
+              fmtTimeChi(d, {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }),
               c.type,
               formatTime(c.duration),
               c.scheduledTour ? "Yes" : "No",

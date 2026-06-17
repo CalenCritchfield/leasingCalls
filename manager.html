@@ -1,0 +1,1888 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leasing Ops — Manager Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display&display=swap");
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --navy: #1b2a3b;
+        --teal: #2d6e6e;
+        --teal-lt: #3d8f8f;
+        --gold: #c9a84c;
+        --cream: #f7f4ef;
+        --white: #ffffff;
+        --muted: #6b7280;
+        --border: #ddd8d0;
+        --red: #c0392b;
+        --green: #27ae60;
+        --purple: #6b3f9e;
+        --amber: #9e6b1a;
+        --radius: 10px;
+      }
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: var(--cream);
+        color: var(--navy);
+        min-height: 100vh;
+      }
+
+      /* ── Header */
+      header {
+        background: var(--navy);
+        padding: 16px 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .logo {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.35rem;
+        color: white;
+      }
+      .logo span {
+        color: var(--gold);
+      }
+      .logo sub {
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.65rem;
+        font-weight: 500;
+        color: #8fa3b1;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        display: block;
+        margin-top: 2px;
+      }
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .header-date {
+        color: #8fa3b1;
+        font-size: 0.78rem;
+      }
+
+      /* ── Upload zone */
+      .upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 36px 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--white);
+        position: relative;
+      }
+      .upload-zone:hover,
+      .upload-zone.drag-over {
+        border-color: var(--teal);
+        background: #f0f9f9;
+      }
+      .upload-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+      .upload-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+      }
+      .upload-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--navy);
+        margin-bottom: 6px;
+      }
+      .upload-sub {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      /* ── Layout */
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 28px 20px;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+      }
+      .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+      }
+      .span-2 {
+        grid-column: span 2;
+      }
+
+      /* ── Card */
+      .card {
+        background: var(--white);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        padding: 24px;
+      }
+      .card-title {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 18px;
+      }
+
+      /* ── Stat cards */
+      .stat-card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        text-align: center;
+      }
+      .stat-num {
+        font-family: "DM Serif Display", serif;
+        font-size: 2.6rem;
+        color: var(--navy);
+        line-height: 1;
+      }
+      .stat-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .stat-sub {
+        font-size: 0.72rem;
+        color: var(--teal);
+        margin-top: 3px;
+        font-weight: 500;
+      }
+
+      /* ── Agent chips (uploaded files list) */
+      .agent-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+      .agent-chip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #eaf5f5;
+        border: 1px solid #b2d8d8;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 0.78rem;
+      }
+      .agent-chip-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .agent-chip-remove {
+        background: none;
+        border: none;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.9rem;
+        line-height: 1;
+        padding: 0;
+        opacity: 0.6;
+      }
+      .agent-chip-remove:hover {
+        opacity: 1;
+        color: var(--red);
+      }
+      .agent-name-input {
+        border: none;
+        background: transparent;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--teal);
+        outline: none;
+        min-width: 80px;
+        max-width: 160px;
+        border-bottom: 1.5px dashed #b2d8d8;
+        padding: 1px 2px;
+      }
+      .agent-name-input:focus {
+        border-bottom-color: var(--teal);
+        background: white;
+        border-radius: 3px;
+      }
+      .agent-file-label {
+        font-size: 0.68rem;
+        color: var(--muted);
+        margin-left: 2px;
+      }
+
+      /* ── Bar chart */
+      .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        position: relative;
+        padding-bottom: 24px;
+      }
+      .bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        justify-content: flex-end;
+        height: 100%;
+      }
+      .bar-fill {
+        width: 100%;
+        border-radius: 5px 5px 0 0;
+        min-height: 3px;
+        transition: height 0.4s ease;
+      }
+      .bar-val {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--navy);
+      }
+      .bar-lbl {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        text-align: center;
+        position: absolute;
+        bottom: 0;
+      }
+      .bar-axis {
+        position: absolute;
+        bottom: 22px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--border);
+      }
+
+      /* ── Agent leaderboard table */
+      .agent-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+      .agent-table th {
+        text-align: left;
+        padding: 9px 12px;
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--muted);
+        border-bottom: 2px solid var(--border);
+      }
+      .agent-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+      }
+      .agent-table tr:last-child td {
+        border-bottom: none;
+      }
+      .agent-table tr:hover td {
+        background: #fafaf8;
+      }
+      .agent-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 600;
+      }
+      .agent-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .rank-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        font-size: 0.68rem;
+        font-weight: 700;
+      }
+      .rank-1 {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .rank-2 {
+        background: #f3f4f6;
+        color: #374151;
+      }
+      .rank-3 {
+        background: #fef3c7;
+        color: #78350f;
+        opacity: 0.7;
+      }
+      .rank-n {
+        background: #f0f0f0;
+        color: #9ca3af;
+      }
+      .progress-bar {
+        height: 5px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 3px;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s ease;
+      }
+      .type-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      .pill-leasing {
+        background: #eaf5f5;
+        color: var(--teal);
+      }
+      .pill-applicant {
+        background: #f0eaf8;
+        color: var(--purple);
+      }
+      .pill-resident {
+        background: #fbf8f0;
+        color: var(--amber);
+      }
+      .pill-other {
+        background: #f0f0f0;
+        color: #555;
+      }
+
+      /* ── Donut */
+      .donut-wrap {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .donut-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        flex: 1;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+      }
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .legend-val {
+        font-weight: 700;
+        margin-left: auto;
+      }
+
+      /* ── Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 20px;
+        border-radius: 6px;
+        border: none;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.84rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn-gold {
+        background: var(--gold);
+        color: var(--navy);
+      }
+      .btn-gold:hover {
+        background: #b8963e;
+      }
+      .btn-navy {
+        background: var(--navy);
+        color: white;
+      }
+      .btn-navy:hover {
+        background: #253b50;
+      }
+      .btn-outline {
+        background: transparent;
+        border: 1.5px solid var(--border);
+        color: var(--navy);
+      }
+      .btn-outline:hover {
+        background: var(--cream);
+      }
+      .btn-red {
+        background: transparent;
+        border: 1.5px solid var(--red);
+        color: var(--red);
+      }
+      .btn-red:hover {
+        background: #fdf0ee;
+      }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      /* ── Section header row */
+      .section-hdr {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .section-hdr h2 {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.3rem;
+        color: var(--navy);
+      }
+
+      /* ── Empty state */
+      .empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--muted);
+      }
+      .empty-icon {
+        font-size: 2.4rem;
+        margin-bottom: 12px;
+      }
+      .empty h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--navy);
+        margin-bottom: 6px;
+      }
+      .empty p {
+        font-size: 0.84rem;
+      }
+
+      /* ── Toast */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--navy);
+        color: white;
+        padding: 11px 18px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transform: translateY(60px);
+        opacity: 0;
+        transition: all 0.3s;
+        z-index: 999;
+      }
+      .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      /* ── PDF overlay */
+      #pdfOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+      #pdfOverlay.open {
+        display: flex;
+      }
+      #pdfBox {
+        background: white;
+        width: 860px;
+        max-width: 96vw;
+        max-height: 92vh;
+        overflow-y: auto;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+      #pdfToolbar {
+        position: sticky;
+        top: 0;
+        background: var(--navy);
+        padding: 13px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 12px 12px 0 0;
+        z-index: 10;
+      }
+      #pdfToolbar span {
+        color: white;
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+      #reportBody {
+        padding: 44px 52px;
+        font-family: "DM Sans", sans-serif;
+        color: #1b2a3b;
+        background: white;
+      }
+
+      /* ── Report internals */
+      .rpt-hdr {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 3px solid #1b2a3b;
+        padding-bottom: 18px;
+        margin-bottom: 28px;
+      }
+      .rpt-logo {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.5rem;
+        color: #1b2a3b;
+      }
+      .rpt-logo span {
+        color: #c9a84c;
+      }
+      .rpt-meta {
+        text-align: right;
+        font-size: 0.78rem;
+        color: #6b7280;
+        line-height: 1.7;
+      }
+      .rpt-meta strong {
+        display: block;
+        font-size: 0.95rem;
+        color: #1b2a3b;
+        font-weight: 700;
+      }
+      .rpt-sec {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+        color: #6b7280;
+        border-bottom: 1px solid #ddd8d0;
+        padding-bottom: 6px;
+        margin: 28px 0 16px;
+      }
+      .rpt-stats-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 4px;
+      }
+      .rpt-stat {
+        background: #f7f4ef;
+        border: 1px solid #ddd8d0;
+        border-radius: 8px;
+        padding: 14px;
+        text-align: center;
+      }
+      .rpt-stat-n {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.9rem;
+        color: #1b2a3b;
+        line-height: 1;
+      }
+      .rpt-stat-l {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-top: 4px;
+      }
+      .rpt-charts-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-bottom: 4px;
+      }
+      .rpt-chart-box {
+        background: #f7f4ef;
+        border: 1px solid #ddd8d0;
+        border-radius: 8px;
+        padding: 18px;
+      }
+      .rpt-chart-title {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 14px;
+      }
+      .rpt-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        height: 110px;
+        position: relative;
+        padding-bottom: 20px;
+      }
+      .rpt-bar-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        height: 100%;
+        justify-content: flex-end;
+      }
+      .rpt-bar-fill {
+        width: 100%;
+        border-radius: 4px 4px 0 0;
+        min-height: 3px;
+      }
+      .rpt-bar-val {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #1b2a3b;
+      }
+      .rpt-bar-lbl {
+        font-size: 0.6rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-align: center;
+      }
+      .rpt-bar-axis {
+        position: absolute;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #ddd8d0;
+      }
+      .rpt-donut-wrap {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .rpt-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1;
+      }
+      .rpt-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.75rem;
+        color: #1b2a3b;
+      }
+      .rpt-legend-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .rpt-legend-val {
+        font-weight: 700;
+        margin-left: auto;
+      }
+      .rpt-agent-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.75rem;
+      }
+      .rpt-agent-table th {
+        text-align: left;
+        padding: 8px 10px;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: #6b7280;
+        border-bottom: 2px solid #1b2a3b;
+      }
+      .rpt-agent-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #ddd8d0;
+      }
+      .rpt-agent-table tr:nth-child(even) td {
+        background: #f7f4ef;
+      }
+      .rpt-agent-table tr:last-child td {
+        border-bottom: none;
+        font-weight: 700;
+        background: #edf2f7;
+      }
+      .rpt-indiv-block {
+        border: 1px solid #ddd8d0;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+      .rpt-indiv-hdr {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .rpt-indiv-name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1b2a3b;
+      }
+      .rpt-indiv-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .rpt-indiv-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .rpt-indiv-stat {
+        background: #f7f4ef;
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+      }
+      .rpt-indiv-stat-n {
+        font-family: "DM Serif Display", serif;
+        font-size: 1.4rem;
+        color: #1b2a3b;
+      }
+      .rpt-indiv-stat-l {
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-top: 2px;
+      }
+      .rpt-footer {
+        border-top: 1px solid #ddd8d0;
+        padding-top: 14px;
+        margin-top: 10px;
+        font-size: 0.68rem;
+        color: #9ca3af;
+        display: flex;
+        justify-content: space-between;
+      }
+      .rpt-indiv-breakdown {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .rpt-type-mini {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.68rem;
+        padding: 3px 9px;
+        border-radius: 12px;
+        font-weight: 600;
+      }
+
+      /* ── Divider */
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 28px 0;
+      }
+
+      /* ── Tab bar within page */
+      .tab-bar {
+        display: flex;
+        gap: 4px;
+        background: var(--cream);
+        border-radius: 8px;
+        padding: 4px;
+        margin-bottom: 24px;
+        width: fit-content;
+      }
+      .tab-pill {
+        padding: 8px 18px;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--muted);
+        cursor: pointer;
+        transition: all 0.15s;
+        border: none;
+        background: none;
+        font-family: "DM Sans", sans-serif;
+      }
+      .tab-pill.active {
+        background: white;
+        color: var(--navy);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+
+      @media (max-width: 800px) {
+        .grid-2,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+        .grid-4 {
+          grid-template-columns: 1fr 1fr;
+        }
+        .span-2 {
+          grid-column: span 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo">
+        Leasing <span>Operations</span>
+        <sub>Manager Dashboard</sub>
+      </div>
+      <div class="header-right">
+        <div class="header-date" id="headerDate"></div>
+        <button
+          class="btn btn-gold"
+          id="exportPdfBtn"
+          onclick="openPdf()"
+          disabled
+        >
+          ⬇ Export Team Report
+        </button>
+      </div>
+    </header>
+
+    <div class="page">
+      <!-- Upload section -->
+      <div class="card" style="margin-bottom: 24px">
+        <div class="section-hdr" style="margin-bottom: 14px">
+          <div class="card-title" style="margin-bottom: 0">
+            Upload Agent CSV Files
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button
+              class="btn btn-red"
+              onclick="clearAll()"
+              id="clearBtn"
+              disabled
+            >
+              ✕ Clear All
+            </button>
+          </div>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+          <input
+            type="file"
+            accept=".csv"
+            multiple
+            onchange="handleFiles(this.files)"
+          />
+          <div class="upload-icon">📂</div>
+          <div class="upload-title">
+            Drop agent CSV files here or click to browse
+          </div>
+          <div class="upload-sub">
+            Export CSVs from each agent's tracker using Call History → Export.
+            Multiple files accepted.
+          </div>
+        </div>
+
+        <div id="agentChipsWrap" style="margin-top: 16px; display: none">
+          <div
+            style="
+              font-size: 0.7rem;
+              font-weight: 700;
+              letter-spacing: 1px;
+              text-transform: uppercase;
+              color: var(--muted);
+              margin-bottom: 4px;
+            "
+          >
+            Loaded Agents
+            <span
+              style="
+                font-weight: 400;
+                text-transform: none;
+                letter-spacing: 0;
+                color: var(--muted);
+              "
+            >
+              — click a name to edit it</span
+            >
+          </div>
+          <div class="agent-chips" id="agentChips"></div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="emptyState">
+        <div class="empty">
+          <div class="empty-icon">📋</div>
+          <h3>No data loaded yet</h3>
+          <p>
+            Upload one or more agent CSV files above to see the team dashboard.
+          </p>
+        </div>
+      </div>
+
+      <!-- Dashboard (hidden until data loaded) -->
+      <div id="dashboard" style="display: none">
+        <!-- Team KPIs -->
+        <div class="section-hdr">
+          <h2>Team Overview</h2>
+          <span
+            id="reportRange"
+            style="font-size: 0.78rem; color: var(--muted)"
+          ></span>
+        </div>
+        <div class="grid-4" style="margin-bottom: 24px">
+          <div class="stat-card">
+            <div class="stat-num" id="kTotal">0</div>
+            <div class="stat-label">Total Calls</div>
+            <div class="stat-sub" id="kAgents"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="kTours">0</div>
+            <div class="stat-label">Tours Scheduled</div>
+            <div class="stat-sub" id="kTourPct"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="kApps">0</div>
+            <div class="stat-label">Applications Sent</div>
+            <div class="stat-sub" id="kAppPct"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="kAvg" style="font-size: 1.8rem"></div>
+            <div class="stat-label">Avg Call Time</div>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="grid-2" style="margin-bottom: 24px">
+          <div class="card">
+            <div class="card-title">Team — Calls by Type</div>
+            <div class="bar-chart" style="height: 180px" id="teamTypeChart">
+              <div class="bar-axis"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Team — Type Distribution</div>
+            <div class="donut-wrap">
+              <svg
+                width="140"
+                height="140"
+                viewBox="0 0 140 140"
+                id="teamDonutSvg"
+                style="flex-shrink: 0"
+              >
+                <circle
+                  cx="70"
+                  cy="70"
+                  r="55"
+                  fill="none"
+                  stroke="#EEEBE4"
+                  stroke-width="22"
+                />
+                <text
+                  x="70"
+                  y="75"
+                  text-anchor="middle"
+                  font-family="DM Serif Display,serif"
+                  font-size="22"
+                  fill="#1B2A3B"
+                  id="teamDonutCenter"
+                >
+                  0
+                </text>
+              </svg>
+              <div class="donut-legend">
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #2d6e6e"></span
+                  >Leasing<span class="legend-val" id="lgLeasing">0</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #6b3f9e"></span
+                  >Applicant<span class="legend-val" id="lgApplicant">0</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #c9a84c"></span
+                  >Resident<span class="legend-val" id="lgResident">0</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: #9ca3af"></span
+                  >Other<span class="legend-val" id="lgOther">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calls per agent bar chart -->
+        <div class="card" style="margin-bottom: 24px">
+          <div class="card-title">Calls per Agent</div>
+          <div class="bar-chart" style="height: 200px" id="agentVolumeChart">
+            <div class="bar-axis"></div>
+          </div>
+        </div>
+
+        <!-- Agent leaderboard + individual tabs -->
+        <div class="tab-bar">
+          <button
+            class="tab-pill active"
+            onclick="switchTab('leaderboard', this)"
+          >
+            Leaderboard
+          </button>
+          <button class="tab-pill" onclick="switchTab('individual', this)">
+            Individual Breakdown
+          </button>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="tab-content active" id="tab-leaderboard">
+          <div class="card">
+            <div class="card-title">Agent Leaderboard</div>
+            <table class="agent-table" id="leaderboardTable">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Agent</th>
+                  <th>Total Calls</th>
+                  <th>Leasing</th>
+                  <th>Applicant</th>
+                  <th>Resident</th>
+                  <th>Other</th>
+                  <th>Tours</th>
+                  <th>Applications</th>
+                  <th>Avg Duration</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Individual breakdown -->
+        <div class="tab-content" id="tab-individual">
+          <div id="individualCards"></div>
+        </div>
+      </div>
+      <!-- /dashboard -->
+    </div>
+    <!-- /page -->
+
+    <!-- PDF Overlay -->
+    <div id="pdfOverlay">
+      <div id="pdfBox">
+        <div id="pdfToolbar">
+          <span>Team Report — Preview</span>
+          <div style="display: flex; gap: 8px">
+            <button class="btn btn-gold" id="dlPdfBtn" onclick="downloadPdf()">
+              ⬇ Download PDF
+            </button>
+            <button
+              class="btn btn-outline"
+              style="color: white; border-color: rgba(255, 255, 255, 0.3)"
+              onclick="closePdf()"
+            >
+              ✕ Close
+            </button>
+          </div>
+        </div>
+        <div id="reportBody"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ── Constants
+      const TYPE_COLORS = {
+        Leasing: "#2D6E6E",
+        Applicant: "#6B3F9E",
+        Resident: "#C9A84C",
+        Other: "#9CA3AF",
+      };
+      const AGENT_PALETTE = [
+        "#2D6E6E",
+        "#6B3F9E",
+        "#C9A84C",
+        "#C0392B",
+        "#2980B9",
+        "#E67E22",
+        "#16A085",
+        "#8E44AD",
+        "#D35400",
+        "#27AE60",
+      ];
+      const TZ = "America/Chicago";
+
+      function fmtDateChi(d, opts) {
+        return new Date(d).toLocaleDateString("en-US", {
+          timeZone: TZ,
+          ...opts,
+        });
+      }
+      function fmtTimeChi(d, opts) {
+        return new Date(d).toLocaleTimeString("en-US", {
+          timeZone: TZ,
+          ...opts,
+        });
+      }
+      function toDateStrChi(d) {
+        return new Date(d).toLocaleDateString("en-CA", { timeZone: TZ });
+      }
+
+      // ── State
+      let agents = []; // [{ name, color, calls: [{type,duration,scheduledTour,sentApplication,notes,timestamp}] }]
+
+      // ── Init
+      document.getElementById("headerDate").textContent =
+        fmtDateChi(new Date(), {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }) + " • Chicago";
+
+      // Drag & drop
+      const zone = document.getElementById("uploadZone");
+      zone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        zone.classList.add("drag-over");
+      });
+      zone.addEventListener("dragleave", () =>
+        zone.classList.remove("drag-over"),
+      );
+      zone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        zone.classList.remove("drag-over");
+        handleFiles(e.dataTransfer.files);
+      });
+
+      // ── File handling
+      function handleFiles(files) {
+        const arr = Array.from(files).filter((f) => f.name.endsWith(".csv"));
+        if (!arr.length) {
+          showToast("Please upload .csv files only.");
+          return;
+        }
+        let pending = arr.length;
+        arr.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            parseCSV(file.name, e.target.result);
+            pending--;
+            if (pending === 0) renderDashboard();
+          };
+          reader.readAsText(file);
+        });
+      }
+
+      function parseCSV(filename, text) {
+        const result = Papa.parse(text.trim(), {
+          header: true,
+          skipEmptyLines: true,
+        });
+        if (!result.data.length) {
+          showToast(`Could not parse ${filename}`);
+          return;
+        }
+
+        const firstRow = result.data[0] || {};
+
+        // 1. Read Agent column embedded by the tracker (most reliable)
+        let agentName = (firstRow["Agent"] || "").trim();
+
+        // 2. Fall back to filename stripping if no Agent column
+        if (!agentName) {
+          agentName = filename
+            .replace(
+              /leasing-calls[-_]?(today|filtered|all|week-report)?[-_]?/i,
+              "",
+            )
+            .replace(/\.csv$/i, "")
+            .replace(/\d{4}-\d{2}-\d{2}/g, "")
+            .replace(/[-_]+/g, " ")
+            .trim();
+          if (!agentName) agentName = filename.replace(".csv", "");
+          agentName = agentName.replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+          if (!agentName) agentName = "Agent " + (agents.length + 1);
+        }
+
+        // Deduplicate
+        let finalName = agentName,
+          suffix = 2;
+        while (agents.find((a) => a.name === finalName))
+          finalName = `${agentName} (${suffix++})`;
+
+        const color = AGENT_PALETTE[agents.length % AGENT_PALETTE.length];
+
+        const calls = result.data
+          .map((row) => {
+            const durStr = row["Duration"] || "00:00:00";
+            const parts = durStr.split(":").map(Number);
+            const duration =
+              (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+            const dateCol = row["Date"] || "";
+            const timeCol = row["Time"] || "";
+            let timestamp = null;
+            try {
+              timestamp = new Date(dateCol + " " + timeCol).toISOString();
+            } catch (e) {}
+            return {
+              type: row["Type"] || "Other",
+              duration,
+              scheduledTour:
+                (row["Tour Scheduled"] || "").toLowerCase() === "yes",
+              sentApplication:
+                (row["Application Sent"] || "").toLowerCase() === "yes",
+              notes: row["Notes"] || "",
+              timestamp,
+            };
+          })
+          .filter((c) => c.type);
+
+        if (!calls.length) {
+          showToast(`No valid calls found in ${filename}`);
+          return;
+        }
+        agents.push({ name: finalName, color, calls, filename });
+      }
+
+      function clearAll() {
+        agents = [];
+        renderDashboard();
+      }
+
+      // ── Render dashboard
+      function renderDashboard() {
+        const hasData = agents.length > 0;
+        document.getElementById("emptyState").style.display = hasData
+          ? "none"
+          : "";
+        document.getElementById("dashboard").style.display = hasData
+          ? ""
+          : "none";
+        document.getElementById("exportPdfBtn").disabled = !hasData;
+        document.getElementById("clearBtn").disabled = !hasData;
+
+        // Agent chips
+        const chipsWrap = document.getElementById("agentChipsWrap");
+        const chips = document.getElementById("agentChips");
+        chipsWrap.style.display = hasData ? "" : "none";
+        chips.innerHTML = agents
+          .map(
+            (a, i) => `
+    <div class="agent-chip">
+      <span class="agent-chip-dot" style="background:${a.color}"></span>
+      <input
+        class="agent-name-input"
+        value="${escHtml(a.name)}"
+        title="Click to edit agent name"
+        onchange="renameAgent(${i}, this.value)"
+        onkeydown="if(event.key==='Enter')this.blur()"
+      />
+      <span class="agent-file-label">${a.calls.length} calls</span>
+      <button class="agent-chip-remove" onclick="removeAgent(${i})" title="Remove agent">✕</button>
+    </div>`,
+          )
+          .join("");
+
+        if (!hasData) return;
+
+        // Aggregate
+        const allCalls = agents.flatMap((a) => a.calls);
+        const total = allCalls.length;
+        const tours = allCalls.filter((c) => c.scheduledTour).length;
+        const apps = allCalls.filter((c) => c.sentApplication).length;
+        const avgSec = total
+          ? Math.round(allCalls.reduce((s, c) => s + c.duration, 0) / total)
+          : 0;
+        const counts = countsByType(allCalls);
+
+        // Date range label
+        const timestamps = allCalls
+          .map((c) => c.timestamp)
+          .filter(Boolean)
+          .sort();
+        if (timestamps.length) {
+          const from = fmtDateChi(timestamps[0], {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          const to = fmtDateChi(timestamps[timestamps.length - 1], {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          document.getElementById("reportRange").textContent =
+            from === to ? from : `${from} – ${to}`;
+        }
+
+        // KPIs
+        document.getElementById("kTotal").textContent = total;
+        document.getElementById("kAgents").textContent =
+          `${agents.length} agent${agents.length !== 1 ? "s" : ""}`;
+        document.getElementById("kTours").textContent = tours;
+        document.getElementById("kTourPct").textContent = total
+          ? Math.round((tours / total) * 100) + "% of calls"
+          : "";
+        document.getElementById("kApps").textContent = apps;
+        document.getElementById("kAppPct").textContent = total
+          ? Math.round((apps / total) * 100) + "% of calls"
+          : "";
+        document.getElementById("kAvg").textContent = formatTime(avgSec);
+
+        // Team type bar chart
+        renderBarChart(counts, "teamTypeChart", 160);
+
+        // Donut
+        renderDonut(
+          counts,
+          total,
+          "teamDonutSvg",
+          "teamDonutCenter",
+          "lgLeasing",
+          "lgApplicant",
+          "lgResident",
+          "lgOther",
+        );
+
+        // Agent volume bar chart
+        renderAgentVolumeChart();
+
+        // Leaderboard
+        renderLeaderboard();
+
+        // Individual
+        renderIndividual();
+      }
+
+      function removeAgent(i) {
+        agents.splice(i, 1);
+        renderDashboard();
+      }
+
+      function renameAgent(i, newName) {
+        const trimmed = newName.trim();
+        if (!trimmed) return;
+        // Check for duplicate names (ignore self)
+        const dupe = agents.find((a, idx) => idx !== i && a.name === trimmed);
+        if (dupe) {
+          showToast(`"${trimmed}" already exists — pick a different name.`);
+          renderDashboard();
+          return;
+        }
+        agents[i].name = trimmed;
+        renderDashboard();
+      }
+
+      function renderBarChart(counts, elId, maxH) {
+        const max = Math.max(...Object.values(counts), 1);
+        const el = document.getElementById(elId);
+        el.innerHTML = '<div class="bar-axis"></div>';
+        Object.entries(counts).forEach(([label, val]) => {
+          const h = Math.round((val / max) * maxH);
+          const col = document.createElement("div");
+          col.className = "bar-col";
+          col.innerHTML = `<span class="bar-val">${val}</span><div class="bar-fill" style="height:${h}px;background:${TYPE_COLORS[label]};"></div><span class="bar-lbl">${label}</span>`;
+          el.appendChild(col);
+        });
+      }
+
+      function renderDonut(counts, total, svgId, centerId, lgL, lgA, lgR, lgO) {
+        const svg = document.getElementById(svgId);
+        document.getElementById(centerId).textContent = total;
+        svg.querySelectorAll(".arc").forEach((e) => e.remove());
+        if (total > 0) {
+          const R = 55,
+            CX = 70,
+            CY = 70,
+            SW = 22,
+            circ = 2 * Math.PI * R;
+          let off = 0;
+          Object.entries(counts).forEach(([type, count]) => {
+            if (!count) return;
+            const dash = (count / total) * circ;
+            const c = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "circle",
+            );
+            c.setAttribute("class", "arc");
+            c.setAttribute("cx", CX);
+            c.setAttribute("cy", CY);
+            c.setAttribute("r", R);
+            c.setAttribute("fill", "none");
+            c.setAttribute("stroke", TYPE_COLORS[type]);
+            c.setAttribute("stroke-width", SW);
+            c.setAttribute("stroke-dasharray", `${dash} ${circ - dash}`);
+            c.setAttribute("stroke-dashoffset", circ / 4 - off);
+            c.setAttribute("transform", `rotate(-90 ${CX} ${CY})`);
+            svg.insertBefore(c, document.getElementById(centerId));
+            off += dash;
+          });
+        }
+        document.getElementById(lgL).textContent = counts.Leasing;
+        document.getElementById(lgA).textContent = counts.Applicant;
+        document.getElementById(lgR).textContent = counts.Resident;
+        document.getElementById(lgO).textContent = counts.Other;
+      }
+
+      function renderAgentVolumeChart() {
+        const el = document.getElementById("agentVolumeChart");
+        el.innerHTML = '<div class="bar-axis"></div>';
+        const max = Math.max(...agents.map((a) => a.calls.length), 1);
+        agents.forEach((a) => {
+          const h = Math.round((a.calls.length / max) * 170);
+          const col = document.createElement("div");
+          col.className = "bar-col";
+          col.innerHTML = `<span class="bar-val">${a.calls.length}</span><div class="bar-fill" style="height:${h}px;background:${a.color};"></div><span class="bar-lbl" style="font-size:0.6rem;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(a.name)}</span>`;
+          el.appendChild(col);
+        });
+      }
+
+      function renderLeaderboard() {
+        const sorted = [...agents].sort(
+          (a, b) => b.calls.length - a.calls.length,
+        );
+        const max = sorted[0]?.calls.length || 1;
+        const tbody = document.getElementById("leaderboardBody");
+        tbody.innerHTML = sorted
+          .map((a, i) => {
+            const c = countsByType(a.calls);
+            const avg = a.calls.length
+              ? Math.round(
+                  a.calls.reduce((s, x) => s + x.duration, 0) / a.calls.length,
+                )
+              : 0;
+            const tours = a.calls.filter((x) => x.scheduledTour).length;
+            const apps = a.calls.filter((x) => x.sentApplication).length;
+            const pct = Math.round((a.calls.length / max) * 100);
+            const rankClass =
+              i === 0
+                ? "rank-1"
+                : i === 1
+                  ? "rank-2"
+                  : i === 2
+                    ? "rank-3"
+                    : "rank-n";
+            return `<tr>
+      <td><span class="rank-badge ${rankClass}">${i + 1}</span></td>
+      <td><div class="agent-name-cell"><span class="agent-color-dot" style="background:${a.color}"></span>${escHtml(a.name)}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${a.color};"></div></div>
+      </td>
+      <td><strong>${a.calls.length}</strong></td>
+      <td>${c.Leasing}</td>
+      <td>${c.Applicant}</td>
+      <td>${c.Resident}</td>
+      <td>${c.Other}</td>
+      <td>${tours}</td>
+      <td>${apps}</td>
+      <td>${formatTime(avg)}</td>
+    </tr>`;
+          })
+          .join("");
+      }
+
+      function renderIndividual() {
+        const wrap = document.getElementById("individualCards");
+        wrap.innerHTML = agents
+          .map((a) => {
+            const c = countsByType(a.calls);
+            const total = a.calls.length;
+            const tours = a.calls.filter((x) => x.scheduledTour).length;
+            const apps = a.calls.filter((x) => x.sentApplication).length;
+            const avg = total
+              ? Math.round(a.calls.reduce((s, x) => s + x.duration, 0) / total)
+              : 0;
+            const typePills = Object.entries(c)
+              .map(
+                ([type, val]) =>
+                  `<span class="type-pill pill-${type.toLowerCase()}">${type}: ${val}</span>`,
+              )
+              .join("");
+            return `<div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <span style="width:12px;height:12px;border-radius:50%;background:${a.color};display:inline-block;flex-shrink:0;"></span>
+        <span style="font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--navy);">${escHtml(a.name)}</span>
+      </div>
+      <div class="grid-4" style="margin-bottom:14px;">
+        <div class="stat-card"><div class="stat-num" style="font-size:2rem;">${total}</div><div class="stat-label">Total Calls</div></div>
+        <div class="stat-card"><div class="stat-num" style="font-size:2rem;">${tours}</div><div class="stat-label">Tours</div></div>
+        <div class="stat-card"><div class="stat-num" style="font-size:2rem;">${apps}</div><div class="stat-label">Applications</div></div>
+        <div class="stat-card"><div class="stat-num" style="font-size:1.4rem;">${formatTime(avg)}</div><div class="stat-label">Avg Duration</div></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${typePills}</div>
+    </div>`;
+          })
+          .join("");
+      }
+
+      // ── Tab switching
+      function switchTab(name, el) {
+        document
+          .querySelectorAll(".tab-pill")
+          .forEach((b) => b.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((c) => c.classList.remove("active"));
+        el.classList.add("active");
+        document.getElementById("tab-" + name).classList.add("active");
+      }
+
+      // ── PDF Report
+      function openPdf() {
+        if (!agents.length) return;
+        buildReportHTML();
+        document.getElementById("pdfOverlay").classList.add("open");
+        document.body.style.overflow = "hidden";
+      }
+      function closePdf() {
+        document.getElementById("pdfOverlay").classList.remove("open");
+        document.body.style.overflow = "";
+      }
+      document.getElementById("pdfOverlay").addEventListener("click", (e) => {
+        if (e.target === document.getElementById("pdfOverlay")) closePdf();
+      });
+
+      function buildReportHTML() {
+        const allCalls = agents.flatMap((a) => a.calls);
+        const total = allCalls.length;
+        const tours = allCalls.filter((c) => c.scheduledTour).length;
+        const apps = allCalls.filter((c) => c.sentApplication).length;
+        const avgSec = total
+          ? Math.round(allCalls.reduce((s, c) => s + c.duration, 0) / total)
+          : 0;
+        const counts = countsByType(allCalls);
+        const dateStr = fmtDateChi(new Date(), {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const genTime =
+          fmtTimeChi(new Date(), { hour: "2-digit", minute: "2-digit" }) +
+          " CT";
+
+        // Timestamps
+        const timestamps = allCalls
+          .map((c) => c.timestamp)
+          .filter(Boolean)
+          .sort();
+        let rangeStr = dateStr;
+        if (timestamps.length) {
+          const from = fmtDateChi(timestamps[0], {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          const to = fmtDateChi(timestamps[timestamps.length - 1], {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          rangeStr = from === to ? from : `${from} – ${to}`;
+        }
+
+        // Team bar chart HTML
+        const maxCount = Math.max(...Object.values(counts), 1);
+        const barsHtml = Object.entries(counts)
+          .map(([label, val]) => {
+            const h = Math.round((val / maxCount) * 90);
+            return `<div class="rpt-bar-group">
+      <span class="rpt-bar-val">${val}</span>
+      <div class="rpt-bar-fill" style="height:${h}px;background:${TYPE_COLORS[label]};"></div>
+      <span class="rpt-bar-lbl">${label}</span>
+    </div>`;
+          })
+          .join("");
+
+        // Team donut SVG
+        const R = 52,
+          CX = 60,
+          CY = 60,
+          SW = 20,
+          circ = 2 * Math.PI * R;
+        let arcOff = 0,
+          arcElems = "";
+        Object.entries(counts).forEach(([type, count]) => {
+          if (!count) return;
+          const dash = (count / total) * circ;
+          arcElems += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${TYPE_COLORS[type]}" stroke-width="${SW}" stroke-dasharray="${dash} ${circ - dash}" stroke-dashoffset="${circ / 4 - arcOff}" transform="rotate(-90 ${CX} ${CY})"/>`;
+          arcOff += dash;
+        });
+        const donutSvg = `<svg width="120" height="120" viewBox="0 0 120 120">
+    <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#EEEBE4" stroke-width="${SW}"/>
+    ${arcElems}
+    <text x="${CX}" y="${CY + 7}" text-anchor="middle" font-family="Georgia,serif" font-size="18" fill="#1b2a3b">${total}</text>
+  </svg>`;
+        const legendHtml = Object.entries(counts)
+          .map(([label, val]) => {
+            const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+            return `<div class="rpt-legend-item">
+      <span class="rpt-legend-dot" style="background:${TYPE_COLORS[label]}"></span>
+      ${label}<span class="rpt-legend-val">${val} <span style="font-weight:400;color:#9ca3af;">(${pct}%)</span></span>
+    </div>`;
+          })
+          .join("");
+
+        // Leaderboard table
+        const sorted = [...agents].sort(
+          (a, b) => b.calls.length - a.calls.length,
+        );
+        const lbRows = sorted
+          .map((a, i) => {
+            const c = countsByType(a.calls);
+            const avg = a.calls.length
+              ? Math.round(
+                  a.calls.reduce((s, x) => s + x.duration, 0) / a.calls.length,
+                )
+              : 0;
+            return `<tr>
+      <td>${i + 1}</td>
+      <td style="font-weight:600;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.color};margin-right:6px;"></span>${escHtml(a.name)}</td>
+      <td><strong>${a.calls.length}</strong></td>
+      <td>${c.Leasing}</td><td>${c.Applicant}</td><td>${c.Resident}</td><td>${c.Other}</td>
+      <td>${a.calls.filter((x) => x.scheduledTour).length}</td>
+      <td>${a.calls.filter((x) => x.sentApplication).length}</td>
+      <td>${formatTime(avg)}</td>
+    </tr>`;
+          })
+          .join("");
+        // Totals row
+        const totC = countsByType(allCalls);
+        const lbTotal = `<tr>
+    <td colspan="2" style="font-weight:700;">TEAM TOTAL</td>
+    <td>${total}</td><td>${totC.Leasing}</td><td>${totC.Applicant}</td><td>${totC.Resident}</td><td>${totC.Other}</td>
+    <td>${tours}</td><td>${apps}</td><td>${formatTime(avgSec)}</td>
+  </tr>`;
+
+        // Individual blocks
+        const indivHtml = agents
+          .map((a) => {
+            const c = countsByType(a.calls);
+            const t = a.calls.length;
+            const avg = t
+              ? Math.round(a.calls.reduce((s, x) => s + x.duration, 0) / t)
+              : 0;
+            const typeBreakdown = Object.entries(c)
+              .map(
+                ([type, val]) =>
+                  `<span class="rpt-type-mini" style="background:${TYPE_COLORS[type]}22;color:${TYPE_COLORS[type]};">${type}: ${val}</span>`,
+              )
+              .join("");
+            return `<div class="rpt-indiv-block">
+      <div class="rpt-indiv-hdr">
+        <span class="rpt-indiv-dot" style="background:${a.color}"></span>
+        <span class="rpt-indiv-name">${escHtml(a.name)}</span>
+      </div>
+      <div class="rpt-indiv-stats">
+        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${t}</div><div class="rpt-indiv-stat-l">Total Calls</div></div>
+        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.filter((x) => x.scheduledTour).length}</div><div class="rpt-indiv-stat-l">Tours</div></div>
+        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.filter((x) => x.sentApplication).length}</div><div class="rpt-indiv-stat-l">Applications</div></div>
+        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n" style="font-size:1rem;">${formatTime(avg)}</div><div class="rpt-indiv-stat-l">Avg Duration</div></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">${typeBreakdown}</div>
+    </div>`;
+          })
+          .join("");
+
+        document.getElementById("reportBody").innerHTML = `
+    <div class="rpt-hdr">
+      <div>
+        <div class="rpt-logo">Leasing <span>Operations</span></div>
+        <div style="font-size:0.78rem;color:#6b7280;margin-top:4px;">Manager Team Report</div>
+        <div style="font-size:0.82rem;color:#1b2a3b;margin-top:5px;font-weight:600;">${agents.length} Agent${agents.length !== 1 ? "s" : ""}: ${agents.map((a) => escHtml(a.name)).join(", ")}</div>
+      </div>
+      <div class="rpt-meta">
+        <strong>Period: ${rangeStr}</strong>
+        Generated ${genTime}
+      </div>
+    </div>
+
+    <div class="rpt-sec">Team Summary</div>
+    <div class="rpt-stats-4">
+      <div class="rpt-stat"><div class="rpt-stat-n">${total}</div><div class="rpt-stat-l">Total Calls</div></div>
+      <div class="rpt-stat"><div class="rpt-stat-n">${tours}</div><div class="rpt-stat-l">Tours Scheduled</div></div>
+      <div class="rpt-stat"><div class="rpt-stat-n">${apps}</div><div class="rpt-stat-l">Applications Sent</div></div>
+      <div class="rpt-stat"><div class="rpt-stat-n" style="font-size:1.3rem;">${formatTime(avgSec)}</div><div class="rpt-stat-l">Avg Call Time</div></div>
+    </div>
+
+    <div class="rpt-sec">Call Type Breakdown</div>
+    <div class="rpt-charts-row">
+      <div class="rpt-chart-box">
+        <div class="rpt-chart-title">Calls by Type</div>
+        <div class="rpt-bars"><div class="rpt-bar-axis"></div>${barsHtml}</div>
+      </div>
+      <div class="rpt-chart-box">
+        <div class="rpt-chart-title">Distribution</div>
+        <div class="rpt-donut-wrap">${donutSvg}<div class="rpt-legend">${legendHtml}</div></div>
+      </div>
+    </div>
+
+    <div class="rpt-sec">Agent Leaderboard</div>
+    <table class="rpt-agent-table">
+      <thead><tr><th>#</th><th>Agent</th><th>Total</th><th>Leasing</th><th>Applicant</th><th>Resident</th><th>Other</th><th>Tours</th><th>Applications</th><th>Avg Time</th></tr></thead>
+      <tbody>${lbRows}${lbTotal}</tbody>
+    </table>
+
+    <div class="rpt-sec">Individual Breakdowns</div>
+    ${indivHtml}
+
+    <div class="rpt-footer">
+      <span>Leasing Operations — Manager Dashboard</span>
+      <span>Generated ${dateStr} at ${genTime}</span>
+    </div>
+  `;
+      }
+
+      async function downloadPdf() {
+        const btn = document.getElementById("dlPdfBtn");
+        btn.textContent = "Generating…";
+        btn.disabled = true;
+        try {
+          const { jsPDF } = window.jspdf;
+          const content = document.getElementById("reportBody");
+          const canvas = await html2canvas(content, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+          });
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF({
+            orientation: "portrait",
+            unit: "mm",
+            format: "a4",
+          });
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
+          const margin = 10;
+          const usableW = pageW - margin * 2;
+          const imgH = (canvas.height * usableW) / canvas.width;
+          let remainingH = imgH,
+            srcY = 0;
+          while (remainingH > 0) {
+            const sliceH = Math.min(remainingH, pageH - margin * 2);
+            const sc = document.createElement("canvas");
+            sc.width = canvas.width;
+            sc.height = (sliceH / usableW) * canvas.width;
+            const ctx = sc.getContext("2d");
+            ctx.drawImage(
+              canvas,
+              0,
+              srcY * (canvas.width / usableW),
+              canvas.width,
+              sc.height,
+              0,
+              0,
+              sc.width,
+              sc.height,
+            );
+            if (srcY > 0) {
+              pdf.addPage();
+            }
+            pdf.addImage(
+              sc.toDataURL("image/png"),
+              "PNG",
+              margin,
+              margin,
+              usableW,
+              sliceH,
+            );
+            srcY += sliceH;
+            remainingH -= sliceH;
+          }
+          pdf.save(`leasing-team-report-${toDateStrChi(new Date())}.pdf`);
+          showToast("PDF saved!");
+        } catch (e) {
+          showToast("PDF generation failed. Please try again.");
+          console.error(e);
+        }
+        btn.textContent = "⬇ Download PDF";
+        btn.disabled = false;
+      }
+
+      // ── Helpers
+      function countsByType(calls) {
+        return {
+          Leasing: calls.filter((c) => c.type === "Leasing").length,
+          Applicant: calls.filter((c) => c.type === "Applicant").length,
+          Resident: calls.filter((c) => c.type === "Resident").length,
+          Other: calls.filter((c) => c.type === "Other").length,
+        };
+      }
+      function formatTime(sec) {
+        const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+        const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+        const s = String(sec % 60).padStart(2, "0");
+        return `${h}:${m}:${s}`;
+      }
+      function escHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+      function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 2800);
+      }
+    </script>
+  </body>
+</html>
