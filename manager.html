@@ -1285,8 +1285,16 @@
               duration,
               scheduledTour:
                 (row["Tour Scheduled"] || "").toLowerCase() === "yes",
+              toursCount:
+                parseInt(row["Tours Count"]) ||
+                ((row["Tour Scheduled"] || "").toLowerCase() === "yes" ? 1 : 0),
               sentApplication:
                 (row["Application Sent"] || "").toLowerCase() === "yes",
+              appsCount:
+                parseInt(row["Applications Count"]) ||
+                ((row["Application Sent"] || "").toLowerCase() === "yes"
+                  ? 1
+                  : 0),
               notes: row["Notes"] || "",
               timestamp,
             };
@@ -1507,8 +1515,14 @@
                   a.calls.reduce((s, x) => s + x.duration, 0) / a.calls.length,
                 )
               : 0;
-            const tours = a.calls.filter((x) => x.scheduledTour).length;
-            const apps = a.calls.filter((x) => x.sentApplication).length;
+            const tours = a.calls.reduce(
+              (s, x) => s + (x.toursCount || (x.scheduledTour ? 1 : 0)),
+              0,
+            );
+            const apps = a.calls.reduce(
+              (s, x) => s + (x.appsCount || (x.sentApplication ? 1 : 0)),
+              0,
+            );
             const pct = Math.round((a.calls.length / max) * 100);
             const rankClass =
               i === 0
@@ -1542,8 +1556,14 @@
           .map((a) => {
             const c = countsByType(a.calls);
             const total = a.calls.length;
-            const tours = a.calls.filter((x) => x.scheduledTour).length;
-            const apps = a.calls.filter((x) => x.sentApplication).length;
+            const tours = a.calls.reduce(
+              (s, x) => s + (x.toursCount || (x.scheduledTour ? 1 : 0)),
+              0,
+            );
+            const apps = a.calls.reduce(
+              (s, x) => s + (x.appsCount || (x.sentApplication ? 1 : 0)),
+              0,
+            );
             const avg = total
               ? Math.round(a.calls.reduce((s, x) => s + x.duration, 0) / total)
               : 0;
@@ -1600,8 +1620,14 @@
       function buildReportHTML() {
         const allCalls = agents.flatMap((a) => a.calls);
         const total = allCalls.length;
-        const tours = allCalls.filter((c) => c.scheduledTour).length;
-        const apps = allCalls.filter((c) => c.sentApplication).length;
+        const tours = allCalls.reduce(
+          (s, c) => s + (c.toursCount || (c.scheduledTour ? 1 : 0)),
+          0,
+        );
+        const apps = allCalls.reduce(
+          (s, c) => s + (c.appsCount || (c.sentApplication ? 1 : 0)),
+          0,
+        );
         const avgSec = total
           ? Math.round(allCalls.reduce((s, c) => s + c.duration, 0) / total)
           : 0;
@@ -1695,8 +1721,8 @@
       <td style="font-weight:600;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${a.color};margin-right:6px;"></span>${escHtml(a.name)}</td>
       <td><strong>${a.calls.length}</strong></td>
       <td>${c.Leasing}</td><td>${c.Applicant}</td><td>${c.Resident}</td><td>${c.Other}</td>
-      <td>${a.calls.filter((x) => x.scheduledTour).length}</td>
-      <td>${a.calls.filter((x) => x.sentApplication).length}</td>
+      <td>${a.calls.reduce((s, x) => s + (x.toursCount || (x.scheduledTour ? 1 : 0)), 0)}</td>
+      <td>${a.calls.reduce((s, x) => s + (x.appsCount || (x.sentApplication ? 1 : 0)), 0)}</td>
       <td>${formatTime(avg)}</td>
     </tr>`;
           })
@@ -1730,8 +1756,8 @@
       </div>
       <div class="rpt-indiv-stats">
         <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${t}</div><div class="rpt-indiv-stat-l">Total Calls</div></div>
-        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.filter((x) => x.scheduledTour).length}</div><div class="rpt-indiv-stat-l">Tours</div></div>
-        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.filter((x) => x.sentApplication).length}</div><div class="rpt-indiv-stat-l">Applications</div></div>
+        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.reduce((s, x) => s + (x.toursCount || (x.scheduledTour ? 1 : 0)), 0)}</div><div class="rpt-indiv-stat-l">Tours</div></div>
+        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.reduce((s, x) => s + (x.appsCount || (x.sentApplication ? 1 : 0)), 0)}</div><div class="rpt-indiv-stat-l">Applications</div></div>
         <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n" style="font-size:1rem;">${formatTime(avg)}</div><div class="rpt-indiv-stat-l">Avg Duration</div></div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">${typeBreakdown}</div>

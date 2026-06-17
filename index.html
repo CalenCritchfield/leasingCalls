@@ -1093,6 +1093,48 @@
         display: flex;
         justify-content: space-between;
       }
+
+      /* Count controls inside action checkboxes */
+      .count-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+        background: white;
+        border: 1.5px solid var(--gold);
+        border-radius: 6px;
+        padding: 1px 4px;
+      }
+      .count-btn {
+        background: none;
+        border: none;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--gold);
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+        font-family: "DM Sans", sans-serif;
+      }
+      .count-btn:hover {
+        color: var(--navy);
+      }
+      .count-input {
+        width: 34px;
+        text-align: center;
+        border: none;
+        outline: none;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--navy);
+        background: transparent;
+        -moz-appearance: textfield;
+      }
+      .count-input::-webkit-outer-spin-button,
+      .count-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+      }
     </style>
   </head>
   <body>
@@ -1213,17 +1255,68 @@
             </div>
             <label class="field-label">Actions Taken</label>
             <div class="action-checks">
-              <label class="check-label">
+              <label
+                class="check-label"
+                onclick="toggleCount(event, 'tourCount')"
+              >
                 <input type="checkbox" id="chkTour" /><span
                   class="custom-check"
                 ></span
                 >Scheduled a Tour
+                <span
+                  class="count-wrap"
+                  id="tourCountWrap"
+                  style="display: none"
+                  onclick="event.stopPropagation()"
+                >
+                  <button
+                    class="count-btn"
+                    onclick="stepCount('tourCount', -1)"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    id="tourCount"
+                    value="1"
+                    min="1"
+                    max="99"
+                    class="count-input"
+                  />
+                  <button class="count-btn" onclick="stepCount('tourCount', 1)">
+                    +
+                  </button>
+                </span>
               </label>
-              <label class="check-label">
+              <label
+                class="check-label"
+                onclick="toggleCount(event, 'appCount')"
+              >
                 <input type="checkbox" id="chkApp" /><span
                   class="custom-check"
                 ></span
                 >Sent an Application
+                <span
+                  class="count-wrap"
+                  id="appCountWrap"
+                  style="display: none"
+                  onclick="event.stopPropagation()"
+                >
+                  <button class="count-btn" onclick="stepCount('appCount', -1)">
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    id="appCount"
+                    value="1"
+                    min="1"
+                    max="99"
+                    class="count-input"
+                  />
+                  <button class="count-btn" onclick="stepCount('appCount', 1)">
+                    +
+                  </button>
+                </span>
               </label>
             </div>
             <label class="field-label" for="notes">Notes</label>
@@ -1695,6 +1788,23 @@
         );
       }
 
+      // ── Count helpers for tour/app spinners
+      function toggleCount(event, countId) {
+        // Find the checkbox within the label that was clicked
+        const label = event.currentTarget;
+        const chk = label.querySelector('input[type="checkbox"]');
+        // If click was on the count-wrap or its children, don't toggle checkbox
+        if (event.target.closest(".count-wrap")) return;
+        chk.checked = !chk.checked;
+        const wrap = document.getElementById(countId + "Wrap");
+        wrap.style.display = chk.checked ? "inline-flex" : "none";
+        if (!chk.checked) document.getElementById(countId).value = 1;
+      }
+      function stepCount(id, delta) {
+        const el = document.getElementById(id);
+        el.value = Math.max(1, Math.min(99, (parseInt(el.value) || 1) + delta));
+      }
+
       function renderTodayView() {
         const tc = todayCalls();
         renderLog(tc, "todayLogList");
@@ -1745,12 +1855,20 @@
           showToast("Please select a call type.");
           return;
         }
+        const tourChecked = document.getElementById("chkTour").checked;
+        const appChecked = document.getElementById("chkApp").checked;
         const call = {
           id: Date.now(),
           type: type.value,
           duration: callSeconds,
-          scheduledTour: document.getElementById("chkTour").checked,
-          sentApplication: document.getElementById("chkApp").checked,
+          scheduledTour: tourChecked,
+          toursCount: tourChecked
+            ? parseInt(document.getElementById("tourCount").value) || 1
+            : 0,
+          sentApplication: appChecked,
+          appsCount: appChecked
+            ? parseInt(document.getElementById("appCount").value) || 1
+            : 0,
           notes: document.getElementById("notes").value.trim(),
           timestamp: new Date().toISOString(),
         };
@@ -1765,7 +1883,11 @@
           .querySelectorAll('input[name="callType"]')
           .forEach((r) => (r.checked = false));
         document.getElementById("chkTour").checked = false;
+        document.getElementById("tourCountWrap").style.display = "none";
+        document.getElementById("tourCount").value = 1;
         document.getElementById("chkApp").checked = false;
+        document.getElementById("appCountWrap").style.display = "none";
+        document.getElementById("appCount").value = 1;
         document.getElementById("notes").value = "";
         document.getElementById("timerDisplay").textContent = "00:00:00";
         document.getElementById("callStatus").textContent = "No active call";
@@ -1793,8 +1915,14 @@
 
         const counts = countsByType(tc);
         const total = tc.length;
-        const tours = tc.filter((c) => c.scheduledTour).length;
-        const apps = tc.filter((c) => c.sentApplication).length;
+        const tours = tc.reduce(
+          (s, c) => s + (c.toursCount || (c.scheduledTour ? 1 : 0)),
+          0,
+        );
+        const apps = tc.reduce(
+          (s, c) => s + (c.appsCount || (c.sentApplication ? 1 : 0)),
+          0,
+        );
         const avgSec = Math.round(
           tc.reduce((a, c) => a + c.duration, 0) / total,
         );
@@ -1854,8 +1982,14 @@
               hour: "2-digit",
               minute: "2-digit",
             });
+            const tourNum = c.toursCount || (c.scheduledTour ? 1 : 0);
+            const appNum = c.appsCount || (c.sentApplication ? 1 : 0);
             const actions =
-              [c.scheduledTour && "Tour", c.sentApplication && "Application"]
+              [
+                tourNum > 0 && (tourNum > 1 ? `${tourNum} Tours` : "Tour"),
+                appNum > 0 &&
+                  (appNum > 1 ? `${appNum} Applications` : "Application"),
+              ]
                 .filter(Boolean)
                 .join(", ") || "—";
             const notes = c.notes || "—";
@@ -2225,8 +2359,8 @@
           };
           dc.forEach((c) => {
             row[c.type]++;
-            if (c.scheduledTour) row.tours++;
-            if (c.sentApplication) row.apps++;
+            row.tours += c.toursCount || (c.scheduledTour ? 1 : 0);
+            row.apps += c.appsCount || (c.sentApplication ? 1 : 0);
           });
           Object.keys(totals).forEach((k) => (totals[k] += row[k] || 0));
           const tr = document.createElement("tr");
@@ -2258,9 +2392,15 @@
               minute: "2-digit",
             });
             const dateStr = fmtDateChi(t, { month: "short", day: "numeric" });
+            const tourNum = c.toursCount || (c.scheduledTour ? 1 : 0);
+            const appNum = c.appsCount || (c.sentApplication ? 1 : 0);
             const tags = [
-              c.scheduledTour && "Tour Scheduled",
-              c.sentApplication && "Application Sent",
+              tourNum > 0 &&
+                (tourNum > 1 ? `${tourNum} Tours Scheduled` : "Tour Scheduled"),
+              appNum > 0 &&
+                (appNum > 1
+                  ? `${appNum} Applications Sent`
+                  : "Application Sent"),
             ].filter(Boolean);
             return `<div class="log-item">
             <div class="log-item-top">
@@ -2276,8 +2416,14 @@
 
       function renderStats(data, idTotal, idTours, idApps, idAvg) {
         const total = data.length;
-        const tours = data.filter((c) => c.scheduledTour).length;
-        const apps = data.filter((c) => c.sentApplication).length;
+        const tours = data.reduce(
+          (s, c) => s + (c.toursCount || (c.scheduledTour ? 1 : 0)),
+          0,
+        );
+        const apps = data.reduce(
+          (s, c) => s + (c.appsCount || (c.sentApplication ? 1 : 0)),
+          0,
+        );
         const avg = total
           ? Math.round(data.reduce((a, c) => a + c.duration, 0) / total)
           : 0;
@@ -2380,7 +2526,9 @@
           "Type",
           "Duration",
           "Tour Scheduled",
+          "Tours Count",
           "Application Sent",
+          "Applications Count",
           "Notes",
         ];
         const rows = data.map((c) => {
@@ -2400,7 +2548,9 @@
             c.type,
             formatTime(c.duration),
             c.scheduledTour ? "Yes" : "No",
+            c.toursCount || (c.scheduledTour ? 1 : 0),
             c.sentApplication ? "Yes" : "No",
+            c.appsCount || (c.sentApplication ? 1 : 0),
             `"${(c.notes || "").replace(/"/g, '""')}"`,
           ].join(",");
         });
@@ -2431,7 +2581,7 @@
           `Other Calls,${weekCalls.filter((c) => c.type === "Other").length}`,
           "",
           "=== ALL CALLS ===",
-          "Agent,Date,Time,Type,Duration,Tour Scheduled,Application Sent,Notes",
+          "Agent,Date,Time,Type,Duration,Tour Scheduled,Tours Count,Application Sent,Applications Count,Notes",
         ];
         const agentWeekName = getAgentName() || "Unknown";
         weekCalls.forEach((c) => {
@@ -2452,7 +2602,9 @@
               c.type,
               formatTime(c.duration),
               c.scheduledTour ? "Yes" : "No",
+              c.toursCount || (c.scheduledTour ? 1 : 0),
               c.sentApplication ? "Yes" : "No",
+              c.appsCount || (c.sentApplication ? 1 : 0),
               `"${(c.notes || "").replace(/"/g, '""')}"`,
             ].join(","),
           );
