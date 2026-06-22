@@ -1129,11 +1129,15 @@
         font-weight: 700;
         color: var(--navy);
         background: transparent;
-        -moz-appearance: textfield;
       }
       .count-input::-webkit-outer-spin-button,
       .count-input::-webkit-inner-spin-button {
         -webkit-appearance: none;
+        appearance: none;
+      }
+      .count-input {
+        -moz-appearance: textfield;
+        appearance: textfield;
       }
     </style>
   </head>
@@ -1318,6 +1322,36 @@
                   </button>
                 </span>
               </label>
+              <label
+                class="check-label"
+                onclick="toggleCount(event, 'keyCount')"
+              >
+                <input type="checkbox" id="chkKey" /><span
+                  class="custom-check"
+                ></span
+                >Key Pick Up
+                <span
+                  class="count-wrap"
+                  id="keyCountWrap"
+                  style="display: none"
+                  onclick="event.stopPropagation()"
+                >
+                  <button class="count-btn" onclick="stepCount('keyCount', -1)">
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    id="keyCount"
+                    value="1"
+                    min="1"
+                    max="99"
+                    class="count-input"
+                  />
+                  <button class="count-btn" onclick="stepCount('keyCount', 1)">
+                    +
+                  </button>
+                </span>
+              </label>
             </div>
             <label class="field-label" for="notes">Notes</label>
             <textarea
@@ -1357,7 +1391,11 @@
         </div>
 
         <!-- Today Stats -->
-        <div class="full-width stats-row" id="todayStats">
+        <div
+          class="full-width stats-row"
+          id="todayStats"
+          style="grid-template-columns: repeat(5, 1fr)"
+        >
           <div class="stat-card">
             <div class="stat-num" id="tStatTotal">0</div>
             <div class="stat-label">Total Calls</div>
@@ -1369,6 +1407,10 @@
           <div class="stat-card">
             <div class="stat-num" id="tStatApps">0</div>
             <div class="stat-label">Applications Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="tStatKeys">0</div>
+            <div class="stat-label">Key Pick Ups</div>
           </div>
           <div class="stat-card">
             <div class="stat-num" id="tStatAvg">—</div>
@@ -1496,7 +1538,10 @@
             id="histLogList"
           ></div>
         </div>
-        <div class="stats-row" style="margin-top: 0">
+        <div
+          class="stats-row"
+          style="margin-top: 0; grid-template-columns: repeat(5, 1fr)"
+        >
           <div class="stat-card">
             <div class="stat-num" id="hStatTotal">0</div>
             <div class="stat-label">Total Calls</div>
@@ -1508,6 +1553,10 @@
           <div class="stat-card">
             <div class="stat-num" id="hStatApps">0</div>
             <div class="stat-label">Applications Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="hStatKeys">0</div>
+            <div class="stat-label">Key Pick Ups</div>
           </div>
           <div class="stat-card">
             <div class="stat-num" id="hStatAvg">—</div>
@@ -1605,7 +1654,10 @@
           </div>
         </div>
         <div class="week-grid" id="weekDayGrid"></div>
-        <div class="stats-row" style="margin-bottom: 28px">
+        <div
+          class="stats-row"
+          style="margin-bottom: 28px; grid-template-columns: repeat(5, 1fr)"
+        >
           <div class="stat-card">
             <div class="stat-num" id="wStatTotal">0</div>
             <div class="stat-label">Week Total</div>
@@ -1617,6 +1669,10 @@
           <div class="stat-card">
             <div class="stat-num" id="wStatApps">0</div>
             <div class="stat-label">Applications Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="wStatKeys">0</div>
+            <div class="stat-label">Key Pick Ups</div>
           </div>
           <div class="stat-card">
             <div class="stat-num" id="wStatAvg">—</div>
@@ -1658,6 +1714,7 @@
                 <th>Other</th>
                 <th>Tours</th>
                 <th>Applications</th>
+                <th>Key Pick Ups</th>
               </tr>
             </thead>
             <tbody id="weekTableBody"></tbody>
@@ -1808,7 +1865,14 @@
       function renderTodayView() {
         const tc = todayCalls();
         renderLog(tc, "todayLogList");
-        renderStats(tc, "tStatTotal", "tStatTours", "tStatApps", "tStatAvg");
+        renderStats(
+          tc,
+          "tStatTotal",
+          "tStatTours",
+          "tStatApps",
+          "tStatAvg",
+          "tStatKeys",
+        );
         renderBarChart(tc, "todayBarChart");
         renderDonut(
           tc,
@@ -1857,6 +1921,7 @@
         }
         const tourChecked = document.getElementById("chkTour").checked;
         const appChecked = document.getElementById("chkApp").checked;
+        const keyChecked = document.getElementById("chkKey").checked;
         const call = {
           id: Date.now(),
           type: type.value,
@@ -1868,6 +1933,10 @@
           sentApplication: appChecked,
           appsCount: appChecked
             ? parseInt(document.getElementById("appCount").value) || 1
+            : 0,
+          keyPickUp: keyChecked,
+          keysCount: keyChecked
+            ? parseInt(document.getElementById("keyCount").value) || 1
             : 0,
           notes: document.getElementById("notes").value.trim(),
           timestamp: new Date().toISOString(),
@@ -1888,6 +1957,9 @@
         document.getElementById("chkApp").checked = false;
         document.getElementById("appCountWrap").style.display = "none";
         document.getElementById("appCount").value = 1;
+        document.getElementById("chkKey").checked = false;
+        document.getElementById("keyCountWrap").style.display = "none";
+        document.getElementById("keyCount").value = 1;
         document.getElementById("notes").value = "";
         document.getElementById("timerDisplay").textContent = "00:00:00";
         document.getElementById("callStatus").textContent = "No active call";
@@ -1921,6 +1993,10 @@
         );
         const apps = tc.reduce(
           (s, c) => s + (c.appsCount || (c.sentApplication ? 1 : 0)),
+          0,
+        );
+        const keys = tc.reduce(
+          (s, c) => s + (c.keysCount || (c.keyPickUp ? 1 : 0)),
           0,
         );
         const avgSec = Math.round(
@@ -1984,11 +2060,14 @@
             });
             const tourNum = c.toursCount || (c.scheduledTour ? 1 : 0);
             const appNum = c.appsCount || (c.sentApplication ? 1 : 0);
+            const keyNum = c.keysCount || (c.keyPickUp ? 1 : 0);
             const actions =
               [
                 tourNum > 0 && (tourNum > 1 ? `${tourNum} Tours` : "Tour"),
                 appNum > 0 &&
                   (appNum > 1 ? `${appNum} Applications` : "Application"),
+                keyNum > 0 &&
+                  (keyNum > 1 ? `${keyNum} Key Pick Ups` : "Key Pick Up"),
               ]
                 .filter(Boolean)
                 .join(", ") || "—";
@@ -2040,6 +2119,10 @@
             <div class="rpt-stat">
               <div class="rpt-stat-num">${apps}</div>
               <div class="rpt-stat-label">Applications Sent</div>
+            </div>
+            <div class="rpt-stat">
+              <div class="rpt-stat-num">${keys}</div>
+              <div class="rpt-stat-label">Key Pick Ups</div>
             </div>
             <div class="rpt-stat">
               <div class="rpt-stat-num" style="font-size:1.4rem;">${formatTime(avgSec)}</div>
@@ -2248,7 +2331,14 @@
         document.getElementById("histBarTitle").textContent =
           `Calls by Type — ${labels[histFilter] || ""}`;
         renderLog(fc, "histLogList");
-        renderStats(fc, "hStatTotal", "hStatTours", "hStatApps", "hStatAvg");
+        renderStats(
+          fc,
+          "hStatTotal",
+          "hStatTours",
+          "hStatApps",
+          "hStatAvg",
+          "hStatKeys",
+        );
         renderBarChart(fc, "histBarChart");
         renderDonut(
           fc,
@@ -2319,6 +2409,7 @@
           "wStatTours",
           "wStatApps",
           "wStatAvg",
+          "wStatKeys",
         );
         const dailyBars = document.getElementById("weekDailyBars");
         dailyBars.innerHTML = "";
@@ -2346,6 +2437,7 @@
           Other: 0,
           tours: 0,
           apps: 0,
+          keys: 0,
         };
         days.forEach(({ d, ds, dc }) => {
           const row = {
@@ -2356,20 +2448,22 @@
             Other: 0,
             tours: 0,
             apps: 0,
+            keys: 0,
           };
           dc.forEach((c) => {
             row[c.type]++;
             row.tours += c.toursCount || (c.scheduledTour ? 1 : 0);
             row.apps += c.appsCount || (c.sentApplication ? 1 : 0);
+            row.keys += c.keysCount || (c.keyPickUp ? 1 : 0);
           });
           Object.keys(totals).forEach((k) => (totals[k] += row[k] || 0));
           const tr = document.createElement("tr");
           const isToday = ds === todayStr;
-          tr.innerHTML = `<td style="${isToday ? "font-weight:600;color:var(--teal);" : ""}">${DAYS_FULL[d.getDay()]} ${d.getDate()}</td><td><strong>${row.total}</strong></td><td>${row.Leasing}</td><td>${row.Applicant}</td><td>${row.Resident}</td><td>${row.Other}</td><td>${row.tours || "—"}</td><td>${row.apps || "—"}</td>`;
+          tr.innerHTML = `<td style="${isToday ? "font-weight:600;color:var(--teal);" : ""}">${DAYS_FULL[d.getDay()]} ${d.getDate()}</td><td><strong>${row.total}</strong></td><td>${row.Leasing}</td><td>${row.Applicant}</td><td>${row.Resident}</td><td>${row.Other}</td><td>${row.tours || "—"}</td><td>${row.apps || "—"}</td><td>${row.keys || "—"}</td>`;
           tbody.appendChild(tr);
         });
         const ttr = document.createElement("tr");
-        ttr.innerHTML = `<td>Week Total</td><td>${totals.total}</td><td>${totals.Leasing}</td><td>${totals.Applicant}</td><td>${totals.Resident}</td><td>${totals.Other}</td><td>${totals.tours || "—"}</td><td>${totals.apps || "—"}</td>`;
+        ttr.innerHTML = `<td>Week Total</td><td>${totals.total}</td><td>${totals.Leasing}</td><td>${totals.Applicant}</td><td>${totals.Resident}</td><td>${totals.Other}</td><td>${totals.tours || "—"}</td><td>${totals.apps || "—"}</td><td>${totals.keys || "—"}</td>`;
         tbody.appendChild(ttr);
       }
 
@@ -2394,6 +2488,7 @@
             const dateStr = fmtDateChi(t, { month: "short", day: "numeric" });
             const tourNum = c.toursCount || (c.scheduledTour ? 1 : 0);
             const appNum = c.appsCount || (c.sentApplication ? 1 : 0);
+            const keyNum = c.keysCount || (c.keyPickUp ? 1 : 0);
             const tags = [
               tourNum > 0 &&
                 (tourNum > 1 ? `${tourNum} Tours Scheduled` : "Tour Scheduled"),
@@ -2401,6 +2496,8 @@
                 (appNum > 1
                   ? `${appNum} Applications Sent`
                   : "Application Sent"),
+              keyNum > 0 &&
+                (keyNum > 1 ? `${keyNum} Key Pick Ups` : "Key Pick Up"),
             ].filter(Boolean);
             return `<div class="log-item">
             <div class="log-item-top">
@@ -2414,7 +2511,7 @@
           .join("");
       }
 
-      function renderStats(data, idTotal, idTours, idApps, idAvg) {
+      function renderStats(data, idTotal, idTours, idApps, idAvg, idKeys) {
         const total = data.length;
         const tours = data.reduce(
           (s, c) => s + (c.toursCount || (c.scheduledTour ? 1 : 0)),
@@ -2424,12 +2521,17 @@
           (s, c) => s + (c.appsCount || (c.sentApplication ? 1 : 0)),
           0,
         );
+        const keys = data.reduce(
+          (s, c) => s + (c.keysCount || (c.keyPickUp ? 1 : 0)),
+          0,
+        );
         const avg = total
           ? Math.round(data.reduce((a, c) => a + c.duration, 0) / total)
           : 0;
         document.getElementById(idTotal).textContent = total;
         document.getElementById(idTours).textContent = tours;
         document.getElementById(idApps).textContent = apps;
+        if (idKeys) document.getElementById(idKeys).textContent = keys;
         document.getElementById(idAvg).textContent = total
           ? formatTime(avg)
           : "—";
@@ -2529,6 +2631,8 @@
           "Tours Count",
           "Application Sent",
           "Applications Count",
+          "Key Pick Up",
+          "Keys Count",
           "Notes",
         ];
         const rows = data.map((c) => {
@@ -2551,6 +2655,8 @@
             c.toursCount || (c.scheduledTour ? 1 : 0),
             c.sentApplication ? "Yes" : "No",
             c.appsCount || (c.sentApplication ? 1 : 0),
+            c.keyPickUp ? "Yes" : "No",
+            c.keysCount || (c.keyPickUp ? 1 : 0),
             `"${(c.notes || "").replace(/"/g, '""')}"`,
           ].join(",");
         });
@@ -2581,7 +2687,7 @@
           `Other Calls,${weekCalls.filter((c) => c.type === "Other").length}`,
           "",
           "=== ALL CALLS ===",
-          "Agent,Date,Time,Type,Duration,Tour Scheduled,Tours Count,Application Sent,Applications Count,Notes",
+          "Agent,Date,Time,Type,Duration,Tour Scheduled,Tours Count,Application Sent,Applications Count,Key Pick Up,Keys Count,Notes",
         ];
         const agentWeekName = getAgentName() || "Unknown";
         weekCalls.forEach((c) => {
@@ -2605,6 +2711,8 @@
               c.toursCount || (c.scheduledTour ? 1 : 0),
               c.sentApplication ? "Yes" : "No",
               c.appsCount || (c.sentApplication ? 1 : 0),
+              c.keyPickUp ? "Yes" : "No",
+              c.keysCount || (c.keyPickUp ? 1 : 0),
               `"${(c.notes || "").replace(/"/g, '""')}"`,
             ].join(","),
           );

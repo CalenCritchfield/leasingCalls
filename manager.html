@@ -780,7 +780,7 @@
       }
       .rpt-indiv-stats {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 8px;
         margin-bottom: 10px;
       }
@@ -985,7 +985,10 @@
             style="font-size: 0.78rem; color: var(--muted)"
           ></span>
         </div>
-        <div class="grid-4" style="margin-bottom: 24px">
+        <div
+          class="grid-4"
+          style="margin-bottom: 24px; grid-template-columns: repeat(5, 1fr)"
+        >
           <div class="stat-card">
             <div class="stat-num" id="kTotal">0</div>
             <div class="stat-label">Total Calls</div>
@@ -1000,6 +1003,11 @@
             <div class="stat-num" id="kApps">0</div>
             <div class="stat-label">Applications Sent</div>
             <div class="stat-sub" id="kAppPct"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="kKeys">0</div>
+            <div class="stat-label">Key Pick Ups</div>
+            <div class="stat-sub" id="kKeyPct"></div>
           </div>
           <div class="stat-card">
             <div class="stat-num" id="kAvg" style="font-size: 1.8rem"></div>
@@ -1104,6 +1112,7 @@
                   <th>Other</th>
                   <th>Tours</th>
                   <th>Applications</th>
+                  <th>Key Pick Ups</th>
                   <th>Avg Duration</th>
                 </tr>
               </thead>
@@ -1280,8 +1289,18 @@
             try {
               timestamp = new Date(dateCol + " " + timeCol).toISOString();
             } catch (e) {}
+            // Normalize type — trim whitespace and fix casing to match expected values
+            const rawType = (row["Type"] || "other").trim();
+            const typeMap = {
+              leasing: "Leasing",
+              applicant: "Applicant",
+              resident: "Resident",
+              other: "Other",
+            };
+            const type = typeMap[rawType.toLowerCase()] || "Other";
+
             return {
-              type: row["Type"] || "Other",
+              type,
               duration,
               scheduledTour:
                 (row["Tour Scheduled"] || "").toLowerCase() === "yes",
@@ -1295,6 +1314,10 @@
                 ((row["Application Sent"] || "").toLowerCase() === "yes"
                   ? 1
                   : 0),
+              keyPickUp: (row["Key Pick Up"] || "").toLowerCase() === "yes",
+              keysCount:
+                parseInt(row["Keys Count"]) ||
+                ((row["Key Pick Up"] || "").toLowerCase() === "yes" ? 1 : 0),
               notes: row["Notes"] || "",
               timestamp,
             };
@@ -1352,12 +1375,23 @@
         // Aggregate
         const allCalls = agents.flatMap((a) => a.calls);
         const total = allCalls.length;
-        const tours = allCalls.filter((c) => c.scheduledTour).length;
-        const apps = allCalls.filter((c) => c.sentApplication).length;
+        const tours = allCalls.reduce(
+          (s, c) => s + (c.toursCount || (c.scheduledTour ? 1 : 0)),
+          0,
+        );
+        const apps = allCalls.reduce(
+          (s, c) => s + (c.appsCount || (c.sentApplication ? 1 : 0)),
+          0,
+        );
+        const keys = allCalls.reduce(
+          (s, c) => s + (c.keysCount || (c.keyPickUp ? 1 : 0)),
+          0,
+        );
         const avgSec = total
           ? Math.round(allCalls.reduce((s, c) => s + c.duration, 0) / total)
           : 0;
         const counts = countsByType(allCalls);
+        const typeTotal = Object.values(counts).reduce((a, b) => a + b, 0);
 
         // Date range label
         const timestamps = allCalls
@@ -1391,15 +1425,21 @@
         document.getElementById("kAppPct").textContent = total
           ? Math.round((apps / total) * 100) + "% of calls"
           : "";
-        document.getElementById("kAvg").textContent = formatTime(avgSec);
+        document.getElementById("kKeys").textContent = keys;
+        document.getElementById("kKeyPct").textContent = total
+          ? Math.round((keys / total) * 100) + "% of calls"
+          : "";
+        document.getElementById("kAvg").textContent = total
+          ? formatTime(avgSec)
+          : "—";
 
         // Team type bar chart
         renderBarChart(counts, "teamTypeChart", 160);
 
-        // Donut
+        // Donut — use typeTotal so arcs are proportional to typed calls
         renderDonut(
           counts,
-          total,
+          typeTotal || total,
           "teamDonutSvg",
           "teamDonutCenter",
           "lgLeasing",
@@ -1523,6 +1563,10 @@
               (s, x) => s + (x.appsCount || (x.sentApplication ? 1 : 0)),
               0,
             );
+            const kkeys = a.calls.reduce(
+              (s, x) => s + (x.keysCount || (x.keyPickUp ? 1 : 0)),
+              0,
+            );
             const pct = Math.round((a.calls.length / max) * 100);
             const rankClass =
               i === 0
@@ -1544,6 +1588,7 @@
       <td>${c.Other}</td>
       <td>${tours}</td>
       <td>${apps}</td>
+      <td>${kkeys}</td>
       <td>${formatTime(avg)}</td>
     </tr>`;
           })
@@ -1578,10 +1623,11 @@
         <span style="width:12px;height:12px;border-radius:50%;background:${a.color};display:inline-block;flex-shrink:0;"></span>
         <span style="font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--navy);">${escHtml(a.name)}</span>
       </div>
-      <div class="grid-4" style="margin-bottom:14px;">
+      <div class="grid-4" style="margin-bottom:14px;grid-template-columns:repeat(5,1fr);">
         <div class="stat-card"><div class="stat-num" style="font-size:2rem;">${total}</div><div class="stat-label">Total Calls</div></div>
         <div class="stat-card"><div class="stat-num" style="font-size:2rem;">${tours}</div><div class="stat-label">Tours</div></div>
         <div class="stat-card"><div class="stat-num" style="font-size:2rem;">${apps}</div><div class="stat-label">Applications</div></div>
+        <div class="stat-card"><div class="stat-num" style="font-size:2rem;">${a.calls.reduce((s, x) => s + (x.keysCount || (x.keyPickUp ? 1 : 0)), 0)}</div><div class="stat-label">Key Pick Ups</div></div>
         <div class="stat-card"><div class="stat-num" style="font-size:1.4rem;">${formatTime(avg)}</div><div class="stat-label">Avg Duration</div></div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">${typePills}</div>
@@ -1626,6 +1672,10 @@
         );
         const apps = allCalls.reduce(
           (s, c) => s + (c.appsCount || (c.sentApplication ? 1 : 0)),
+          0,
+        );
+        const keys = allCalls.reduce(
+          (s, c) => s + (c.keysCount || (c.keyPickUp ? 1 : 0)),
           0,
         );
         const avgSec = total
@@ -1723,6 +1773,7 @@
       <td>${c.Leasing}</td><td>${c.Applicant}</td><td>${c.Resident}</td><td>${c.Other}</td>
       <td>${a.calls.reduce((s, x) => s + (x.toursCount || (x.scheduledTour ? 1 : 0)), 0)}</td>
       <td>${a.calls.reduce((s, x) => s + (x.appsCount || (x.sentApplication ? 1 : 0)), 0)}</td>
+      <td>${a.calls.reduce((s, x) => s + (x.keysCount || (x.keyPickUp ? 1 : 0)), 0)}</td>
       <td>${formatTime(avg)}</td>
     </tr>`;
           })
@@ -1732,7 +1783,7 @@
         const lbTotal = `<tr>
     <td colspan="2" style="font-weight:700;">TEAM TOTAL</td>
     <td>${total}</td><td>${totC.Leasing}</td><td>${totC.Applicant}</td><td>${totC.Resident}</td><td>${totC.Other}</td>
-    <td>${tours}</td><td>${apps}</td><td>${formatTime(avgSec)}</td>
+    <td>${tours}</td><td>${apps}</td><td>${keys}</td><td>${formatTime(avgSec)}</td>
   </tr>`;
 
         // Individual blocks
@@ -1758,6 +1809,7 @@
         <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${t}</div><div class="rpt-indiv-stat-l">Total Calls</div></div>
         <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.reduce((s, x) => s + (x.toursCount || (x.scheduledTour ? 1 : 0)), 0)}</div><div class="rpt-indiv-stat-l">Tours</div></div>
         <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.reduce((s, x) => s + (x.appsCount || (x.sentApplication ? 1 : 0)), 0)}</div><div class="rpt-indiv-stat-l">Applications</div></div>
+        <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n">${a.calls.reduce((s, x) => s + (x.keysCount || (x.keyPickUp ? 1 : 0)), 0)}</div><div class="rpt-indiv-stat-l">Key Pick Ups</div></div>
         <div class="rpt-indiv-stat"><div class="rpt-indiv-stat-n" style="font-size:1rem;">${formatTime(avg)}</div><div class="rpt-indiv-stat-l">Avg Duration</div></div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">${typeBreakdown}</div>
@@ -1779,10 +1831,11 @@
     </div>
 
     <div class="rpt-sec">Team Summary</div>
-    <div class="rpt-stats-4">
+    <div class="rpt-stats-4" style="grid-template-columns:repeat(5,1fr);">
       <div class="rpt-stat"><div class="rpt-stat-n">${total}</div><div class="rpt-stat-l">Total Calls</div></div>
       <div class="rpt-stat"><div class="rpt-stat-n">${tours}</div><div class="rpt-stat-l">Tours Scheduled</div></div>
       <div class="rpt-stat"><div class="rpt-stat-n">${apps}</div><div class="rpt-stat-l">Applications Sent</div></div>
+      <div class="rpt-stat"><div class="rpt-stat-n">${keys}</div><div class="rpt-stat-l">Key Pick Ups</div></div>
       <div class="rpt-stat"><div class="rpt-stat-n" style="font-size:1.3rem;">${formatTime(avgSec)}</div><div class="rpt-stat-l">Avg Call Time</div></div>
     </div>
 
@@ -1800,7 +1853,7 @@
 
     <div class="rpt-sec">Agent Leaderboard</div>
     <table class="rpt-agent-table">
-      <thead><tr><th>#</th><th>Agent</th><th>Total</th><th>Leasing</th><th>Applicant</th><th>Resident</th><th>Other</th><th>Tours</th><th>Applications</th><th>Avg Time</th></tr></thead>
+      <thead><tr><th>#</th><th>Agent</th><th>Total</th><th>Leasing</th><th>Applicant</th><th>Resident</th><th>Other</th><th>Tours</th><th>Applications</th><th>Key Pick Ups</th><th>Avg Time</th></tr></thead>
       <tbody>${lbRows}${lbTotal}</tbody>
     </table>
 
