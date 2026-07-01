@@ -1238,18 +1238,42 @@
         });
       }
 
+      // Find a value from a row by trying multiple possible column name variants
+      function getCol(row, ...keys) {
+        for (const k of keys) {
+          // Try exact, then case-insensitive match against all headers
+          if (row[k] !== undefined) return row[k] || "";
+          const match = Object.keys(row).find(
+            (h) => h.trim().toLowerCase() === k.toLowerCase(),
+          );
+          if (match !== undefined) return row[match] || "";
+        }
+        return "";
+      }
+
+      // Find which header contains the agent name by trying known variants
+      function findAgentKey(headers) {
+        const variants = ["agent", "agent name", "agentname", "name"];
+        for (const h of headers) {
+          if (variants.includes(h.trim().toLowerCase())) return h;
+        }
+        return null;
+      }
+
       function parseRow(row) {
-        const durStr = row["Duration"] || "00:00:00";
+        const durStr = getCol(row, "Duration") || "00:00:00";
         const parts = durStr.split(":").map(Number);
         const duration =
           (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
-        const dateCol = row["Date"] || "";
-        const timeCol = row["Time"] || "";
+
+        const dateCol = getCol(row, "Date");
+        const timeCol = getCol(row, "Time");
         let timestamp = null;
         try {
           timestamp = new Date(dateCol + " " + timeCol).toISOString();
         } catch (e) {}
-        const rawType = (row["Type"] || "other").trim();
+
+        const rawType = (getCol(row, "Type") || "other").trim();
         const typeMap = {
           leasing: "Leasing",
           applicant: "Applicant",
@@ -1257,23 +1281,42 @@
           other: "Other",
         };
         const type = typeMap[rawType.toLowerCase()] || "Other";
+
+        // Tours — handle "Tours Count", "Tours", "Tour Scheduled" + count
+        const tourScheduled =
+          getCol(row, "Tour Scheduled").toLowerCase() === "yes";
+        const toursCount =
+          parseInt(getCol(row, "Tours Count", "Tours")) ||
+          (tourScheduled ? 1 : 0);
+
+        // Applications — handle "Applications Count", "Applications", "Application Sent" + count
+        const appSent = getCol(row, "Application Sent").toLowerCase() === "yes";
+        const appsCount =
+          parseInt(
+            getCol(
+              row,
+              "Applications Count",
+              "Applications",
+              "Application Sent",
+            ),
+          ) || (appSent ? 1 : 0);
+
+        // Keys — handle "Keys Count", "Key Pick Ups", "Key Pick Up"
+        const keyPickUp = getCol(row, "Key Pick Up").toLowerCase() === "yes";
+        const keysCount =
+          parseInt(getCol(row, "Keys Count", "Key Pick Ups", "Key Pick Up")) ||
+          (keyPickUp ? 1 : 0);
+
         return {
           type,
           duration,
-          scheduledTour: (row["Tour Scheduled"] || "").toLowerCase() === "yes",
-          toursCount:
-            parseInt(row["Tours Count"]) ||
-            ((row["Tour Scheduled"] || "").toLowerCase() === "yes" ? 1 : 0),
-          sentApplication:
-            (row["Application Sent"] || "").toLowerCase() === "yes",
-          appsCount:
-            parseInt(row["Applications Count"]) ||
-            ((row["Application Sent"] || "").toLowerCase() === "yes" ? 1 : 0),
-          keyPickUp: (row["Key Pick Up"] || "").toLowerCase() === "yes",
-          keysCount:
-            parseInt(row["Keys Count"]) ||
-            ((row["Key Pick Up"] || "").toLowerCase() === "yes" ? 1 : 0),
-          notes: row["Notes"] || "",
+          scheduledTour: tourScheduled || toursCount > 0,
+          toursCount,
+          sentApplication: appSent || appsCount > 0,
+          appsCount,
+          keyPickUp: keyPickUp || keysCount > 0,
+          keysCount,
+          notes: getCol(row, "Notes") || "",
           timestamp,
         };
       }
@@ -1288,16 +1331,19 @@
           return;
         }
 
-        // Check if CSV has an Agent column with values — if so, group by agent per row
-        const hasAgentCol = result.data.some(
-          (row) => (row["Agent"] || "").trim() !== "",
-        );
+        const headers = result.meta.fields || [];
+        const agentKey = findAgentKey(headers);
+
+        // Check if any row actually has an agent value
+        const hasAgentCol =
+          agentKey &&
+          result.data.some((row) => (row[agentKey] || "").trim() !== "");
 
         if (hasAgentCol) {
-          // ── Combined CSV: group rows by agent name
-          const agentMap = new Map(); // name → [calls]
+          // ── Combined CSV: group every row by its Agent value
+          const agentMap = new Map();
           result.data.forEach((row) => {
-            let name = (row["Agent"] || "").trim();
+            let name = (row[agentKey] || "").trim();
             if (!name) name = "Unknown";
             if (!agentMap.has(name)) agentMap.set(name, []);
             agentMap.get(name).push(parseRow(row));
@@ -1305,7 +1351,6 @@
 
           agentMap.forEach((calls, name) => {
             if (!calls.length) return;
-            // Merge with existing agent of same name, or add new
             const existing = agents.find((a) => a.name === name);
             if (existing) {
               existing.calls.push(...calls);
