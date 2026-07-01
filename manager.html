@@ -929,11 +929,11 @@
           />
           <div class="upload-icon">📂</div>
           <div class="upload-title">
-            Drop agent CSV files here or click to browse
+            Drop your CSV file here or click to browse
           </div>
           <div class="upload-sub">
-            Export CSVs from each agent's tracker using Call History → Export.
-            Multiple files accepted.
+            Supports a single combined CSV with all agents (Agent column
+            auto-detected), or multiple individual agent CSVs at once.
           </div>
         </div>
 
@@ -1238,6 +1238,46 @@
         });
       }
 
+      function parseRow(row) {
+        const durStr = row["Duration"] || "00:00:00";
+        const parts = durStr.split(":").map(Number);
+        const duration =
+          (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+        const dateCol = row["Date"] || "";
+        const timeCol = row["Time"] || "";
+        let timestamp = null;
+        try {
+          timestamp = new Date(dateCol + " " + timeCol).toISOString();
+        } catch (e) {}
+        const rawType = (row["Type"] || "other").trim();
+        const typeMap = {
+          leasing: "Leasing",
+          applicant: "Applicant",
+          resident: "Resident",
+          other: "Other",
+        };
+        const type = typeMap[rawType.toLowerCase()] || "Other";
+        return {
+          type,
+          duration,
+          scheduledTour: (row["Tour Scheduled"] || "").toLowerCase() === "yes",
+          toursCount:
+            parseInt(row["Tours Count"]) ||
+            ((row["Tour Scheduled"] || "").toLowerCase() === "yes" ? 1 : 0),
+          sentApplication:
+            (row["Application Sent"] || "").toLowerCase() === "yes",
+          appsCount:
+            parseInt(row["Applications Count"]) ||
+            ((row["Application Sent"] || "").toLowerCase() === "yes" ? 1 : 0),
+          keyPickUp: (row["Key Pick Up"] || "").toLowerCase() === "yes",
+          keysCount:
+            parseInt(row["Keys Count"]) ||
+            ((row["Key Pick Up"] || "").toLowerCase() === "yes" ? 1 : 0),
+          notes: row["Notes"] || "",
+          timestamp,
+        };
+      }
+
       function parseCSV(filename, text) {
         const result = Papa.parse(text.trim(), {
           header: true,
@@ -1248,14 +1288,35 @@
           return;
         }
 
-        const firstRow = result.data[0] || {};
+        // Check if CSV has an Agent column with values — if so, group by agent per row
+        const hasAgentCol = result.data.some(
+          (row) => (row["Agent"] || "").trim() !== "",
+        );
 
-        // 1. Read Agent column embedded by the tracker (most reliable)
-        let agentName = (firstRow["Agent"] || "").trim();
+        if (hasAgentCol) {
+          // ── Combined CSV: group rows by agent name
+          const agentMap = new Map(); // name → [calls]
+          result.data.forEach((row) => {
+            let name = (row["Agent"] || "").trim();
+            if (!name) name = "Unknown";
+            if (!agentMap.has(name)) agentMap.set(name, []);
+            agentMap.get(name).push(parseRow(row));
+          });
 
-        // 2. Fall back to filename stripping if no Agent column
-        if (!agentName) {
-          agentName = filename
+          agentMap.forEach((calls, name) => {
+            if (!calls.length) return;
+            // Merge with existing agent of same name, or add new
+            const existing = agents.find((a) => a.name === name);
+            if (existing) {
+              existing.calls.push(...calls);
+            } else {
+              const color = AGENT_PALETTE[agents.length % AGENT_PALETTE.length];
+              agents.push({ name, color, calls, filename });
+            }
+          });
+        } else {
+          // ── Single-agent CSV: derive name from filename
+          let agentName = filename
             .replace(
               /leasing-calls[-_]?(today|filtered|all|week-report)?[-_]?/i,
               "",
@@ -1264,71 +1325,22 @@
             .replace(/\d{4}-\d{2}-\d{2}/g, "")
             .replace(/[-_]+/g, " ")
             .trim();
-          if (!agentName) agentName = filename.replace(".csv", "");
-          agentName = agentName.replace(/\b\w/g, (c) => c.toUpperCase()).trim();
           if (!agentName) agentName = "Agent " + (agents.length + 1);
+          agentName = agentName.replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+
+          let finalName = agentName,
+            suffix = 2;
+          while (agents.find((a) => a.name === finalName))
+            finalName = `${agentName} (${suffix++})`;
+
+          const color = AGENT_PALETTE[agents.length % AGENT_PALETTE.length];
+          const calls = result.data.map(parseRow).filter((c) => c.type);
+          if (!calls.length) {
+            showToast(`No valid calls found in ${filename}`);
+            return;
+          }
+          agents.push({ name: finalName, color, calls, filename });
         }
-
-        // Deduplicate
-        let finalName = agentName,
-          suffix = 2;
-        while (agents.find((a) => a.name === finalName))
-          finalName = `${agentName} (${suffix++})`;
-
-        const color = AGENT_PALETTE[agents.length % AGENT_PALETTE.length];
-
-        const calls = result.data
-          .map((row) => {
-            const durStr = row["Duration"] || "00:00:00";
-            const parts = durStr.split(":").map(Number);
-            const duration =
-              (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
-            const dateCol = row["Date"] || "";
-            const timeCol = row["Time"] || "";
-            let timestamp = null;
-            try {
-              timestamp = new Date(dateCol + " " + timeCol).toISOString();
-            } catch (e) {}
-            // Normalize type — trim whitespace and fix casing to match expected values
-            const rawType = (row["Type"] || "other").trim();
-            const typeMap = {
-              leasing: "Leasing",
-              applicant: "Applicant",
-              resident: "Resident",
-              other: "Other",
-            };
-            const type = typeMap[rawType.toLowerCase()] || "Other";
-
-            return {
-              type,
-              duration,
-              scheduledTour:
-                (row["Tour Scheduled"] || "").toLowerCase() === "yes",
-              toursCount:
-                parseInt(row["Tours Count"]) ||
-                ((row["Tour Scheduled"] || "").toLowerCase() === "yes" ? 1 : 0),
-              sentApplication:
-                (row["Application Sent"] || "").toLowerCase() === "yes",
-              appsCount:
-                parseInt(row["Applications Count"]) ||
-                ((row["Application Sent"] || "").toLowerCase() === "yes"
-                  ? 1
-                  : 0),
-              keyPickUp: (row["Key Pick Up"] || "").toLowerCase() === "yes",
-              keysCount:
-                parseInt(row["Keys Count"]) ||
-                ((row["Key Pick Up"] || "").toLowerCase() === "yes" ? 1 : 0),
-              notes: row["Notes"] || "",
-              timestamp,
-            };
-          })
-          .filter((c) => c.type);
-
-        if (!calls.length) {
-          showToast(`No valid calls found in ${filename}`);
-          return;
-        }
-        agents.push({ name: finalName, color, calls, filename });
       }
 
       function clearAll() {
